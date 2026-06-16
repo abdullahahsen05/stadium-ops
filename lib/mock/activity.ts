@@ -1,0 +1,88 @@
+import type { Activity } from "@/lib/types";
+
+export const mockActivity: Activity[] = [
+  {
+    id: "act-001", module: "Invoice", action: "approved",
+    description: "Approved invoice INV-2026-004 from BrightField Lighting Co. — PKR 2,944,000",
+    referenceId: "inv-004", referenceNumber: "INV-2026-004",
+    performedBy: "Ali Khan", role: "Finance Officer",
+    timestamp: "2026-06-14T14:30:00Z",
+  },
+  {
+    id: "act-002", module: "Delivery", action: "received",
+    description: "Received 200 Drainage Pipes from AquaFlow Drainage Systems for PO-2026-006",
+    referenceId: "d-008", referenceNumber: "DEL-2026-008",
+    performedBy: "Ali Khan", role: "Site Engineer",
+    timestamp: "2026-06-14T11:15:00Z",
+  },
+  {
+    id: "act-003", module: "Alert", action: "acknowledged",
+    description: "Acknowledged low stock alert for Exterior Paint (20L)",
+    referenceId: "alr-006", referenceNumber: "ALR-006",
+    performedBy: "Ali Khan", role: "Procurement Officer",
+    timestamp: "2026-06-14T10:00:00Z",
+  },
+  {
+    id: "act-004", module: "Purchase Order", action: "created",
+    description: "Created PO-2026-009 for VIP Seats (Premium) — Prime Seating Systems",
+    referenceId: "po-009", referenceNumber: "PO-2026-009",
+    performedBy: "Ali Khan", role: "Procurement Officer",
+    timestamp: "2026-06-14T09:30:00Z",
+  },
+  {
+    id: "act-005", module: "Delivery", action: "received",
+    description: "Received 8 Floodlight Poles from BrightField Lighting Co. for PO-2026-005",
+    referenceId: "d-007", referenceNumber: "DEL-2026-007",
+    performedBy: "Usman Tariq", role: "Site Engineer",
+    timestamp: "2026-06-12T16:45:00Z",
+  },
+  {
+    id: "act-006", module: "Invoice", action: "created",
+    description: "Added invoice INV-2026-006 from National Cement Suppliers — PKR 3,864,000",
+    referenceId: "inv-006", referenceNumber: "INV-2026-006",
+    performedBy: "Ali Khan", role: "Finance Officer",
+    timestamp: "2026-06-13T14:00:00Z",
+  },
+  {
+    id: "act-007", module: "Payment", action: "paid",
+    description: "Recorded payment PAY-2026-003 to Metro Steel Works — PKR 15,000,000",
+    referenceId: "pay-003", referenceNumber: "PAY-2026-003",
+    performedBy: "Ali Khan", role: "Finance Officer",
+    timestamp: "2026-06-12T15:00:00Z",
+  },
+  {
+    id: "act-008", module: "Vendor", action: "updated",
+    description: "Updated Vision Glass & Facades status to On Hold due to delivery delays",
+    referenceId: "v-007", referenceNumber: "VND-007",
+    performedBy: "Ali Khan", role: "Project Manager",
+    timestamp: "2026-06-13T12:00:00Z",
+  },
+  {
+    id: "act-009", module: "Purchase Order", action: "created",
+    description: "Created PO-2026-008 for Precast Panels and Gravel — National Cement Suppliers",
+    referenceId: "po-008", referenceNumber: "PO-2026-008",
+    performedBy: "Ali Khan", role: "Procurement Officer",
+    timestamp: "2026-06-08T10:00:00Z",
+  },
+  {
+    id: "act-010", module: "Invoice", action: "paid",
+    description: "Marked INV-2026-003 as paid — BuildPro Electricals — PKR 1,282,250",
+    referenceId: "inv-003", referenceNumber: "INV-2026-003",
+    performedBy: "Ali Khan", role: "Finance Officer",
+    timestamp: "2026-06-10T11:00:00Z",
+  },
+  {
+    id: "act-011", module: "Debris", action: "created",
+    description: "Logged debris record DBR-2026-006 — Packaging waste from Concourse Level",
+    referenceId: "dbr-006", referenceNumber: "DBR-2026-006",
+    performedBy: "Bilal Ahmed", role: "Site Engineer",
+    timestamp: "2026-06-14T08:30:00Z",
+  },
+  {
+    id: "act-012", module: "Purchase Order", action: "sent",
+    description: "Sent PO-2026-007 to Vision Glass & Facades for VIP Pavilion glass panels",
+    referenceId: "po-007", referenceNumber: "PO-2026-007",
+    performedBy: "Ali Khan", role: "Procurement Officer",
+    timestamp: "2026-06-07T09:00:00Z",
+  },
+];
