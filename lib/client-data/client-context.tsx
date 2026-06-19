@@ -2,10 +2,10 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import { clientPOs as basePOs, clientInvoices as baseInvoices } from "./data";
-import { isOverdue, isDueSoon, computePaymentStatus } from "./utils";
+import { isOverdue, isDueSoon, computePaymentStatus, formatSAR } from "./utils";
 import type {
   ClientPO, ClientInvoice, ClientVendor, ClientRecord, ClientMutation,
-  ClientPOEdit, ClientInvoiceEdit, ClientActivity, ClientStats
+  ClientPOEdit, ClientInvoiceEdit, ClientActivity, ClientStats, ClientAlert, AlertStateMap
 } from "./types";
 
 const MUTATIONS_KEY   = "stadiumops_client_mutations_v1";
@@ -17,6 +17,16 @@ const NEW_INVOICES_KEY   = "stadiumops_client_new_invoices_v1";
 const NEW_VENDORS_KEY    = "stadiumops_client_new_vendors_v1";
 const DEL_POS_KEY        = "stadiumops_client_deleted_pos_v1";
 const DEL_INVOICES_KEY   = "stadiumops_client_deleted_invoices_v1";
+const ALERT_STATES_KEY   = "stadiumops_client_alert_states_v1";
+
+const SEED_ACTIVITY: ClientActivity[] = [
+  { id: "seed-6", timestamp: "2026-06-15T08:00:00.000Z", action: "system_check", description: "Alert check — 5 overdue invoices and 3 upcoming due dates flagged for review", performedBy: "System" },
+  { id: "seed-5", timestamp: "2026-06-01T08:15:00.000Z", action: "data_import", description: "Payment summary: 7 Paid 100% · 6 Invoice sent to HO · 5 To be Processed", performedBy: "System" },
+  { id: "seed-4", timestamp: "2026-06-01T08:10:00.000Z", action: "data_import", description: "Invoice-to-PO linkage verified — 18 of 18 purchase orders matched to invoices", performedBy: "System" },
+  { id: "seed-3", timestamp: "2026-06-01T08:05:00.000Z", action: "data_import", description: "Excel invoice tracker imported — 18 invoices loaded (AZRAQ AL BAHAR TRADING)", performedBy: "System" },
+  { id: "seed-2", timestamp: "2026-06-01T08:02:00.000Z", action: "data_import", description: "Excel purchase tracker imported — 18 purchase orders across 4 disciplines (TSF, Safety, Consumables, Electrical)", performedBy: "System" },
+  { id: "seed-1", timestamp: "2026-06-01T08:00:00.000Z", action: "system_init", description: "StadiumOps procurement demo initialized — Jeddah Stadium 2034 Project", performedBy: "System" },
+];
 
 interface ClientDataContextValue {
   clientPOs: ClientPO[];
@@ -39,6 +49,10 @@ interface ClientDataContextValue {
   deleteClientPO: (id: string) => void;
   deleteClientInvoice: (id: string) => void;
   deleteClientVendor: (id: string) => void;
+  clientAlerts: ClientAlert[];
+  alertStates: AlertStateMap;
+  acknowledgeAlert: (id: string) => void;
+  resolveAlert: (id: string) => void;
   addClientActivity: (a: Omit<ClientActivity, "id" | "timestamp">) => void;
   resetClientData: () => void;
 }
@@ -67,6 +81,7 @@ export function ClientDataProvider({ children }: { children: React.ReactNode }) 
   const [newVendors, setNewVendors] = useState<ClientVendor[]>([]);
   const [deletedPOIds, setDeletedPOIds] = useState<string[]>([]);
   const [deletedInvoiceIds, setDeletedInvoiceIds] = useState<string[]>([]);
+  const [alertStates, setAlertStates] = useState<AlertStateMap>({});
 
   useEffect(() => {
     setMutations(loadJson(MUTATIONS_KEY, []));
@@ -78,6 +93,7 @@ export function ClientDataProvider({ children }: { children: React.ReactNode }) 
     setNewVendors(loadJson(NEW_VENDORS_KEY, []));
     setDeletedPOIds(loadJson(DEL_POS_KEY, []));
     setDeletedInvoiceIds(loadJson(DEL_INVOICES_KEY, []));
+    setAlertStates(loadJson(ALERT_STATES_KEY, {}));
   }, []);
 
   // All POs with edits applied (excluding deleted)
@@ -256,6 +272,108 @@ export function ClientDataProvider({ children }: { children: React.ReactNode }) 
     });
   }, []);
 
+  const clientAlerts = useMemo<ClientAlert[]>(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayMs = today.getTime();
+    const msPerDay = 1000 * 60 * 60 * 24;
+    const HIGH_VALUE = 10000;
+    const DUE_SOON_DAYS = 14;
+    const alerts: ClientAlert[] = [];
+
+    for (const inv of resolvedInvoices) {
+      if (inv.paymentStatus === "Paid 100%") continue;
+      const pending = Math.max(0, inv.invoiceAmountWithVat - inv.paidAmount);
+      if (pending <= 0) continue;
+
+      let daysOverdue = 0;
+      let daysRemaining = Infinity;
+      if (inv.dueDate) {
+        const dd = new Date(inv.dueDate);
+        dd.setHours(0, 0, 0, 0);
+        const ddMs = dd.getTime();
+        daysOverdue = Math.max(0, Math.ceil((todayMs - ddMs) / msPerDay));
+        daysRemaining = Math.ceil((ddMs - todayMs) / msPerDay);
+      }
+
+      if (daysOverdue > 0) {
+        const priority: ClientAlert["priority"] =
+          daysOverdue > 30 || pending >= HIGH_VALUE ? "critical" :
+          daysOverdue > 7 ? "high" : "medium";
+        alerts.push({
+          id: `alert-overdue-${inv.id}`,
+          type: "overdue",
+          priority,
+          title: `Payment overdue by ${daysOverdue} day${daysOverdue !== 1 ? "s" : ""} — ${inv.invoiceRef}`,
+          description: `${inv.vendorName} — ${inv.invoiceRef} was due ${inv.dueDate}. Outstanding: ${formatSAR(pending)}. Status: ${inv.paymentStatus}.`,
+          vendorName: inv.vendorName, poRef: inv.poRef, invoiceRef: inv.invoiceRef,
+          amount: pending, dueDate: inv.dueDate, daysOverdue,
+          relatedInvoiceId: inv.id, relatedPoId: inv.cpoId,
+        });
+      } else if (daysRemaining >= 0 && daysRemaining <= DUE_SOON_DAYS) {
+        const priority: ClientAlert["priority"] =
+          pending >= HIGH_VALUE && daysRemaining <= 10 ? "critical" :
+          daysRemaining <= 7 ? "high" : "medium";
+        alerts.push({
+          id: `alert-duesoon-${inv.id}`,
+          type: "due_soon",
+          priority,
+          title: daysRemaining === 0
+            ? `Payment due today — ${inv.invoiceRef}`
+            : `Payment due in ${daysRemaining} day${daysRemaining !== 1 ? "s" : ""} — ${inv.invoiceRef}`,
+          description: `${inv.vendorName} — ${inv.invoiceRef} due ${inv.dueDate}. Outstanding: ${formatSAR(pending)}.`,
+          vendorName: inv.vendorName, poRef: inv.poRef, invoiceRef: inv.invoiceRef,
+          amount: pending, dueDate: inv.dueDate, daysRemaining,
+          relatedInvoiceId: inv.id, relatedPoId: inv.cpoId,
+        });
+      } else if (inv.paymentStatus === "To be Processed" && !inv.paymentRequestedDate) {
+        alerts.push({
+          id: `alert-tbp-${inv.id}`,
+          type: "to_be_processed",
+          priority: "medium",
+          title: `Payment not yet requested — ${inv.invoiceRef}`,
+          description: `${inv.vendorName} — ${inv.invoiceRef} is "To be Processed" with no payment request date. Invoice: ${formatSAR(inv.invoiceAmountWithVat)}.`,
+          vendorName: inv.vendorName, poRef: inv.poRef, invoiceRef: inv.invoiceRef,
+          amount: inv.invoiceAmountWithVat, dueDate: inv.dueDate,
+          relatedInvoiceId: inv.id, relatedPoId: inv.cpoId,
+        });
+      }
+    }
+
+    for (const po of resolvedPOs) {
+      if (!resolvedInvoices.some((inv) => inv.cpoId === po.id)) {
+        alerts.push({
+          id: `alert-noinv-${po.id}`,
+          type: "po_no_invoice",
+          priority: "low",
+          title: `PO has no linked invoice — ${po.poRef}`,
+          description: `${po.vendorName} — ${po.poRef} (${po.discipline}) has no invoice on record. PO value: ${formatSAR(po.amountWithVatSar)}.`,
+          vendorName: po.vendorName, poRef: po.poRef,
+          amount: po.amountWithVatSar, relatedPoId: po.id,
+        });
+      }
+    }
+
+    const order: Record<ClientAlert["priority"], number> = { critical: 0, high: 1, medium: 2, low: 3 };
+    return alerts.sort((a, b) => order[a.priority] - order[b.priority]);
+  }, [resolvedInvoices, resolvedPOs]);
+
+  const acknowledgeAlert = useCallback((id: string) => {
+    setAlertStates((prev) => {
+      const next = { ...prev, [id]: "acknowledged" as const };
+      saveJson(ALERT_STATES_KEY, next);
+      return next;
+    });
+  }, []);
+
+  const resolveAlert = useCallback((id: string) => {
+    setAlertStates((prev) => {
+      const next = { ...prev, [id]: "resolved" as const };
+      saveJson(ALERT_STATES_KEY, next);
+      return next;
+    });
+  }, []);
+
   const deleteClientPO = useCallback((id: string) => {
     // If it's a new (user-created) PO, remove it directly
     setNewPOs((prev) => {
@@ -325,6 +443,7 @@ export function ClientDataProvider({ children }: { children: React.ReactNode }) 
     setNewVendors([]);
     setDeletedPOIds([]);
     setDeletedInvoiceIds([]);
+    setAlertStates({});
     saveJson(MUTATIONS_KEY, []);
     saveJson(PO_EDITS_KEY, []);
     saveJson(INV_EDITS_KEY, []);
@@ -334,9 +453,11 @@ export function ClientDataProvider({ children }: { children: React.ReactNode }) 
     saveJson(NEW_VENDORS_KEY, []);
     saveJson(DEL_POS_KEY, []);
     saveJson(DEL_INVOICES_KEY, []);
+    saveJson(ALERT_STATES_KEY, {});
   }, []);
 
   const clientVendors = useMemo(() => newVendors, [newVendors]);
+  const allClientActivity = useMemo(() => [...clientActivity, ...SEED_ACTIVITY], [clientActivity]);
 
   return (
     <ClientDataContext.Provider value={{
@@ -347,8 +468,12 @@ export function ClientDataProvider({ children }: { children: React.ReactNode }) 
       mutations,
       poEdits,
       invoiceEdits,
-      clientActivity,
+      clientActivity: allClientActivity,
       stats,
+      clientAlerts,
+      alertStates,
+      acknowledgeAlert,
+      resolveAlert,
       applyMutation,
       applyPOEdit,
       applyInvoiceEdit,

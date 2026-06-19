@@ -32,37 +32,28 @@ export default function VendorsPage() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null); // vendor name
 
   // Build vendor summary from client POs + invoices
-  const vendorMap = new Map<string, {
-    name: string;
-    discipline: string;
-    poCount: number;
-    totalPOValue: number;
-    invoiceCount: number;
-    totalInvoiceValue: number;
-    totalPaid: number;
-    pendingAmount: number;
-    latestStatus: string;
-    isNew: boolean;
-  }>();
+  type VendorEntry = {
+    name: string; disciplines: Set<string>; poCount: number; totalPOValue: number;
+    invoiceCount: number; totalInvoiceValue: number; totalPaid: number; pendingAmount: number;
+    latestStatus: string; latestInvoiceDate: string; avgCreditDays: number; isNew: boolean;
+    creditDaysList: number[];
+  };
+  const vendorMap = new Map<string, VendorEntry>();
 
-  // From POs
+  // From POs — seed each vendor
   for (const po of clientPOs) {
     const existing = vendorMap.get(po.vendorName);
     if (existing) {
       existing.poCount += 1;
       existing.totalPOValue += po.amountWithVatSar;
+      existing.disciplines.add(po.discipline);
     } else {
       vendorMap.set(po.vendorName, {
-        name: po.vendorName,
-        discipline: po.discipline,
-        poCount: 1,
-        totalPOValue: po.amountWithVatSar,
-        invoiceCount: 0,
-        totalInvoiceValue: 0,
-        totalPaid: 0,
-        pendingAmount: 0,
-        latestStatus: "",
-        isNew: false,
+        name: po.vendorName, disciplines: new Set([po.discipline]),
+        poCount: 1, totalPOValue: po.amountWithVatSar,
+        invoiceCount: 0, totalInvoiceValue: 0, totalPaid: 0, pendingAmount: 0,
+        latestStatus: "", latestInvoiceDate: "", avgCreditDays: 0, isNew: false,
+        creditDaysList: [],
       });
     }
   }
@@ -75,24 +66,31 @@ export default function VendorsPage() {
       existing.totalInvoiceValue += inv.invoiceAmountWithVat;
       existing.totalPaid += inv.paidAmount;
       existing.pendingAmount += Math.max(0, inv.invoiceAmountWithVat - inv.paidAmount);
-      if (!existing.latestStatus || inv.paymentStatus === "Paid 100%") existing.latestStatus = inv.paymentStatus;
+      if (inv.creditDays > 0) existing.creditDaysList.push(inv.creditDays);
+      // Track latest invoice by invoiceDate
+      if (!existing.latestInvoiceDate || inv.invoiceDate > existing.latestInvoiceDate) {
+        existing.latestInvoiceDate = inv.invoiceDate;
+        existing.latestStatus = inv.paymentStatus;
+      }
     }
+  }
+
+  // Compute avgCreditDays
+  for (const v of vendorMap.values()) {
+    v.avgCreditDays = v.creditDaysList.length
+      ? Math.round(v.creditDaysList.reduce((s, d) => s + d, 0) / v.creditDaysList.length)
+      : 0;
   }
 
   // From new client vendors (not yet in POs)
   for (const v of clientVendors) {
     if (!vendorMap.has(v.name)) {
       vendorMap.set(v.name, {
-        name: v.name,
-        discipline: v.category,
-        poCount: 0,
-        totalPOValue: 0,
-        invoiceCount: 0,
-        totalInvoiceValue: 0,
-        totalPaid: 0,
-        pendingAmount: 0,
-        latestStatus: "",
-        isNew: true,
+        name: v.name, disciplines: new Set([v.category]),
+        poCount: 0, totalPOValue: 0,
+        invoiceCount: 0, totalInvoiceValue: 0, totalPaid: 0, pendingAmount: 0,
+        latestStatus: "", latestInvoiceDate: "", avgCreditDays: 0, isNew: true,
+        creditDaysList: [],
       });
     }
   }
@@ -102,7 +100,7 @@ export default function VendorsPage() {
   const filtered = allVendors.filter((v) =>
     search === "" ||
     v.name.toLowerCase().includes(search.toLowerCase()) ||
-    v.discipline.toLowerCase().includes(search.toLowerCase())
+    Array.from(v.disciplines).some((d) => d.toLowerCase().includes(search.toLowerCase()))
   );
 
   const latestInvoiceDate = clientInvoices.reduce((latest, inv) => inv.invoiceDate > latest ? inv.invoiceDate : latest, "");
@@ -195,7 +193,7 @@ export default function VendorsPage() {
             <table className="w-full text-[12.5px]">
               <thead className="bg-[#F8F9FC]">
                 <tr className="border-b border-[#E3E8F0]">
-                  {["Vendor Name", "Discipline", "POs", "Total PO Value", "Invoices", "Invoice Value", "Paid", "Pending", "Latest Status", ""].map((h) => (
+                  {["Vendor Name", "Discipline(s)", "POs", "Total PO Value", "Invoices", "Invoice Value", "Paid", "Pending", "Avg Credit Days", "Latest Invoice", "Latest Status", ""].map((h) => (
                     <th key={h} className="text-left py-3 px-4 font-semibold text-[#6A788D] whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -209,7 +207,7 @@ export default function VendorsPage() {
                         <span className="ml-1.5 text-[10px] font-bold bg-[#EFF6FF] text-[#1968D3] px-1.5 py-0.5 rounded">NEW</span>
                       )}
                     </td>
-                    <td className="py-3 px-4 text-[#6A788D]">{vendor.discipline}</td>
+                    <td className="py-3 px-4 text-[#6A788D] text-[11.5px]">{Array.from(vendor.disciplines).join(", ")}</td>
                     <td className="py-3 px-4 font-semibold text-center">{vendor.poCount}</td>
                     <td className="py-3 px-4 font-semibold font-mono">{vendor.totalPOValue > 0 ? formatSAR(vendor.totalPOValue) : "—"}</td>
                     <td className="py-3 px-4 font-semibold text-center">{vendor.invoiceCount}</td>
@@ -217,6 +215,12 @@ export default function VendorsPage() {
                     <td className="py-3 px-4 font-mono text-[#1E8E55] font-semibold">{vendor.totalPaid > 0 ? formatSAR(vendor.totalPaid) : "—"}</td>
                     <td className="py-3 px-4 font-mono" style={{ color: vendor.pendingAmount > 0 ? "#C8901F" : "#6A788D" }}>
                       {vendor.pendingAmount > 0 ? formatSAR(vendor.pendingAmount) : "—"}
+                    </td>
+                    <td className="py-3 px-4 font-mono text-[11.5px] text-[#6A788D] whitespace-nowrap">
+                      {vendor.avgCreditDays > 0 ? `${vendor.avgCreditDays} days` : "—"}
+                    </td>
+                    <td className="py-3 px-4 text-[#6A788D] whitespace-nowrap text-[11.5px]">
+                      {vendor.latestInvoiceDate || "—"}
                     </td>
                     <td className="py-3 px-4">
                       {vendor.latestStatus

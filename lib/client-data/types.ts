@@ -109,6 +109,25 @@ export interface ClientActivity {
   performedBy: string;
 }
 
+export interface ClientAlert {
+  id: string;
+  type: "overdue" | "due_soon" | "sent_to_ho" | "to_be_processed" | "po_no_invoice";
+  priority: "critical" | "high" | "medium" | "low";
+  title: string;
+  description: string;
+  vendorName?: string;
+  poRef?: string;
+  invoiceRef?: string;
+  amount?: number;
+  dueDate?: string;
+  daysOverdue?: number;
+  daysRemaining?: number;
+  relatedPoId?: string;
+  relatedInvoiceId?: string;
+}
+
+export type AlertStateMap = Record<string, "open" | "acknowledged" | "resolved">;
+
 export interface ClientStats {
   totalPoValueWithVat: number;
   totalInvoiceValueWithVat: number;
