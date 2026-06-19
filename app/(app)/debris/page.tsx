@@ -73,7 +73,7 @@ export default function DebrisPage() {
       notes: data.notes ?? "",
     };
     addDebris(newRecord);
-    addActivity({ module: "Debris", action: "created", description: `Logged ${data.type} removal from ${data.zone} â€” ${data.quantity} ${data.unit}`, referenceId: newRecord.id, referenceNumber: debrisNumber, performedBy: "Ali Khan", role: "Site Engineer" });
+    addActivity({ module: "Debris", action: "created", description: `Logged ${data.type} removal from ${data.zone} — ${data.quantity} ${data.unit}`, referenceId: newRecord.id, referenceNumber: debrisNumber, performedBy: "Ali Khan", role: "Site Engineer" });
     toast.success(`Debris record ${debrisNumber} added`);
     reset();
     setAddOpen(false);
@@ -129,7 +129,7 @@ export default function DebrisPage() {
                   <td className="py-3 px-4 text-[#6A788D]">{d.removalDate}</td>
                   <td className="py-3 px-4 font-semibold font-mono-id">{formatPKR(d.cost)}</td>
                   <td className="py-3 px-4"><StatusBadge status={d.disposalStatus} /></td>
-                  <td className="py-3 px-4 text-[#6A788D] max-w-[180px] truncate">{d.notes || "â€”"}</td>
+                  <td className="py-3 px-4 text-[#6A788D] max-w-[180px] truncate">{d.notes || "—"}</td>
                 </tr>
               ))}
             </tbody>

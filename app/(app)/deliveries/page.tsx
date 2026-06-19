@@ -152,7 +152,7 @@ export default function DeliveriesPage() {
                   <td className="py-3 px-4 font-mono-id">{d.orderedQty.toLocaleString()}</td>
                   <td className="py-3 px-4 font-mono-id text-[#1E8E55]">{d.deliveredQty.toLocaleString()}</td>
                   <td className="py-3 px-4 text-[#6A788D]">{d.expectedDate}</td>
-                  <td className="py-3 px-4 text-[#6A788D]">{d.receivedDate || "â€”"}</td>
+                  <td className="py-3 px-4 text-[#6A788D]">{d.receivedDate || "—"}</td>
                   <td className="py-3 px-4 text-[#6A788D]">{d.zone}</td>
                   <td className="py-3 px-4"><StatusBadge status={d.condition} /></td>
                   <td className="py-3 px-4"><StatusBadge status={d.status} /></td>
@@ -171,7 +171,7 @@ export default function DeliveriesPage() {
               <Label>Purchase Order</Label>
               <Select onValueChange={(value) => { const poId = value as string; setValue("poId", poId); setSelectedPO(poId); }}>
                 <SelectTrigger><SelectValue placeholder="Select PO..." /></SelectTrigger>
-                <SelectContent>{state.purchaseOrders.filter((po) => ["Sent", "Partial"].includes(po.status)).map((po) => <SelectItem key={po.id} value={po.id}>{po.poNumber} â€” {po.vendorName}</SelectItem>)}</SelectContent>
+                <SelectContent>{state.purchaseOrders.filter((po) => ["Sent", "Partial"].includes(po.status)).map((po) => <SelectItem key={po.id} value={po.id}>{po.poNumber} — {po.vendorName}</SelectItem>)}</SelectContent>
               </Select>
               {errors.poId && <p className="text-[11px] text-red-600">{errors.poId.message}</p>}
             </div>

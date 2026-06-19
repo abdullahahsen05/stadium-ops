@@ -84,7 +84,7 @@ export default function InvoicesPage() {
     if (isDueSoon(dueDate, 5)) {
       // auto-generate alert
     }
-    addActivity({ module: "Invoice", action: "created", description: `Added invoice ${data.invoiceNumber} from ${vendor.name} â€” ${formatPKR(total)}`, referenceId: newInvoice.id, referenceNumber: data.invoiceNumber, performedBy: "Ali Khan", role: "Finance Officer" });
+    addActivity({ module: "Invoice", action: "created", description: `Added invoice ${data.invoiceNumber} from ${vendor.name} — ${formatPKR(total)}`, referenceId: newInvoice.id, referenceNumber: data.invoiceNumber, performedBy: "Ali Khan", role: "Finance Officer" });
     toast.success(`Invoice ${data.invoiceNumber} added`);
     reset();
     setAddOpen(false);
@@ -92,13 +92,13 @@ export default function InvoicesPage() {
 
   function approve(inv: Invoice) {
     updateInvoice(inv.id, { status: "Approved", approvedDate: new Date().toISOString().split("T")[0] });
-    addActivity({ module: "Invoice", action: "approved", description: `Approved invoice ${inv.invoiceNumber} from ${inv.vendorName} â€” ${formatPKR(inv.totalAmount)}`, referenceId: inv.id, referenceNumber: inv.invoiceNumber, performedBy: "Ali Khan", role: "Finance Officer" });
+    addActivity({ module: "Invoice", action: "approved", description: `Approved invoice ${inv.invoiceNumber} from ${inv.vendorName} — ${formatPKR(inv.totalAmount)}`, referenceId: inv.id, referenceNumber: inv.invoiceNumber, performedBy: "Ali Khan", role: "Finance Officer" });
     toast.success(`Invoice ${inv.invoiceNumber} approved`);
   }
 
   function reject(inv: Invoice) {
     updateInvoice(inv.id, { status: "Rejected", rejectedDate: new Date().toISOString().split("T")[0], rejectionReason: rejectReason });
-    addActivity({ module: "Invoice", action: "rejected", description: `Rejected invoice ${inv.invoiceNumber} â€” ${rejectReason}`, referenceId: inv.id, referenceNumber: inv.invoiceNumber, performedBy: "Ali Khan", role: "Finance Officer" });
+    addActivity({ module: "Invoice", action: "rejected", description: `Rejected invoice ${inv.invoiceNumber} — ${rejectReason}`, referenceId: inv.id, referenceNumber: inv.invoiceNumber, performedBy: "Ali Khan", role: "Finance Officer" });
     toast.success(`Invoice ${inv.invoiceNumber} rejected`);
     setRejectId(null);
     setRejectReason("");
@@ -108,7 +108,7 @@ export default function InvoicesPage() {
     <div className="animate-fade-in-up">
       <PageHeader
         title="Invoices"
-        subtitle="Manage vendor invoices â€” approve, reject, track due dates and aging."
+        subtitle="Manage vendor invoices — approve, reject, track due dates and aging."
         actions={
           <Button onClick={() => setAddOpen(true)} className="gap-2 text-white" style={{ background: "#E07B00" }}>
             <Plus size={14} />Add Invoice
@@ -160,7 +160,7 @@ export default function InvoicesPage() {
                   <tr key={inv.id} className={`border-b border-[#F0F3F8] hover:bg-[#F8F9FC] transition-colors ${ov ? "bg-red-50/30" : ""}`}>
                     <td className="py-3 px-4 font-mono-id font-semibold text-[#14223B]">{inv.invoiceNumber}</td>
                     <td className="py-3 px-4 font-medium text-[#14223B]">{inv.vendorName}</td>
-                    <td className="py-3 px-4 font-mono-id text-[#6A788D]">{inv.poNumber || "â€”"}</td>
+                    <td className="py-3 px-4 font-mono-id text-[#6A788D]">{inv.poNumber || "—"}</td>
                     <td className="py-3 px-4 text-[#6A788D]">{inv.invoiceDate}</td>
                     <td className="py-3 px-4">
                       <span className={ov ? "text-[#C0453F] font-semibold" : dueSoon ? "text-[#C8901F] font-semibold" : "text-[#6A788D]"}>
