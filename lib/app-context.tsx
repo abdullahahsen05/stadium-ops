@@ -11,6 +11,7 @@ interface AppContextValue {
   addActivity: (activity: Omit<Activity, "id" | "timestamp">) => void;
   resetDemo: () => void;
   // Convenience mutators
+  addMaterial: (material: Material) => void;
   updateMaterial: (id: string, patch: Partial<Material>) => void;
   updateVendor: (id: string, patch: Partial<Vendor>) => void;
   addPurchaseOrder: (po: PurchaseOrder) => void;
@@ -60,6 +61,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     resetState();
     setState(getInitialState());
     toast.success("Demo data has been reset to defaults.");
+  }, []);
+
+  const addMaterial = useCallback((material: Material) => {
+    setState((s) => ({ ...s, materials: [...s.materials, material] }));
   }, []);
 
   const updateMaterial = useCallback((id: string, patch: Partial<Material>) => {
@@ -175,6 +180,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setState,
         addActivity,
         resetDemo,
+        addMaterial,
         updateMaterial,
         updateVendor,
         addVendor,

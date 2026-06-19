@@ -51,7 +51,7 @@ function getStockStatus(current: number, reorder: number): { label: string; colo
 }
 
 export default function InventoryPage() {
-  const { state, updateMaterial, addActivity } = useApp();
+  const { state, addMaterial, updateMaterial, addActivity } = useApp();
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -88,7 +88,7 @@ export default function InventoryPage() {
       zone: data.zone as Zone,
       lastUpdated: new Date().toISOString().split("T")[0],
     };
-    // Add to state via setState
+    addMaterial(newMat);
     addActivity({ module: "Inventory", action: "created", description: `Added material ${newMat.name}`, referenceId: newMat.id, referenceNumber: code, performedBy: "Ali Khan", role: "Procurement Officer" });
     toast.success(`Material "${data.name}" added successfully`);
     resetAdd();

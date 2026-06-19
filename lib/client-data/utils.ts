@@ -20,8 +20,15 @@ export function isDueSoon(dueDate: string, days = 14): boolean {
   return diff >= 0 && diff <= days;
 }
 
+export function computePaymentStatus(paidAmount: number, invoiceAmountWithVat: number, fallback: string): string {
+  if (paidAmount >= invoiceAmountWithVat && invoiceAmountWithVat > 0) return "Paid 100%";
+  if (paidAmount > 0) return "Partially Paid";
+  return fallback;
+}
+
 export function getPaymentStatusColor(status: string): string {
   if (status === "Paid 100%") return "#1E8E55";
+  if (status === "Partially Paid") return "#7C3AED";
   if (status === "Invoice sent to HO") return "#1968D3";
   if (status === "To be Processed") return "#C8901F";
   return "#6A788D";
@@ -29,6 +36,7 @@ export function getPaymentStatusColor(status: string): string {
 
 export function getPaymentStatusBg(status: string): string {
   if (status === "Paid 100%") return "#ECFDF5";
+  if (status === "Partially Paid") return "#F5F3FF";
   if (status === "Invoice sent to HO") return "#EFF6FF";
   if (status === "To be Processed") return "#FFFBEB";
   return "#F8F9FC";
