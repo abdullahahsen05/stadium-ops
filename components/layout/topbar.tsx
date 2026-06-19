@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Bell, ChevronDown, Search, Plus, FileText, Receipt, DollarSign, Building2, Upload, X } from "lucide-react";
+import { Bell, ChevronDown, Search, Plus, FileText, Receipt, DollarSign, Building2, Upload, X, LogOut } from "lucide-react";
 import { demoOpenAlerts } from "@/lib/demo-shell";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuLabel,
@@ -45,6 +45,11 @@ export function TopBar() {
         openForm(action as Parameters<typeof openForm>[0]);
       }
     }
+  }
+
+  function handleLogout() {
+    document.cookie = "demo_access=; path=/; max-age=0; SameSite=Strict";
+    router.replace("/login");
   }
 
   useEffect(() => {
@@ -168,16 +173,29 @@ export function TopBar() {
           </button>
 
           {/* User */}
-          <div className="flex items-center gap-2.5 pl-3.5 border-l border-[#E3E8F0]">
-            <div className="w-[34px] h-[34px] rounded-full flex items-center justify-center text-white text-[12.5px] font-bold flex-none" style={{ background: "var(--so-accent)" }}>
-              AK
-            </div>
-            <div className="leading-tight">
-              <div className="text-[12.5px] font-semibold text-[#14223B]">Ali Khan</div>
-              <div className="text-[11px] text-[#6A788D]">{role}</div>
-            </div>
-            <ChevronDown size={11} strokeWidth={1.6} className="text-[#6A788D]" />
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger className="flex items-center gap-2.5 pl-3.5 border-l border-[#E3E8F0] outline-none rounded-r-[8px] py-1 pr-1 hover:bg-[#F5F7FB] transition-colors">
+              <div className="w-[34px] h-[34px] rounded-full flex items-center justify-center text-white text-[12.5px] font-bold flex-none" style={{ background: "var(--so-accent)" }}>
+                AK
+              </div>
+              <div className="leading-tight text-left">
+                <div className="text-[12.5px] font-semibold text-[#14223B]">Ali Khan</div>
+                <div className="text-[11px] text-[#6A788D]">{role}</div>
+              </div>
+              <ChevronDown size={11} strokeWidth={1.6} className="text-[#6A788D]" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuGroup>
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 py-2 cursor-pointer text-[#C0453F] focus:bg-red-50 focus:text-[#C0453F]"
+                >
+                  <LogOut size={14} className="flex-none" />
+                  <span className="text-[13px] font-semibold">Logout</span>
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 
