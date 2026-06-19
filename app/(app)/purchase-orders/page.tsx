@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useApp } from "@/lib/app-context";
+import { useClientData } from "@/lib/client-data/client-context";
 import { formatPKR, generateId, addDays } from "@/lib/store";
+import { formatSAR, getPaymentStatusColor, getPaymentStatusBg } from "@/lib/client-data/utils";
 import { PageHeader } from "@/components/ui-custom/page-header";
 import { StatCard } from "@/components/ui-custom/stat-card";
 import { StatusBadge } from "@/components/ui-custom/status-badge";
@@ -32,14 +34,39 @@ const poSchema = z.object({
 });
 type POForm = z.infer<typeof poSchema>;
 
+const ALL_DISCIPLINES = ["All", "TSF", "Safety Equipments", "Consumables", "ELECTRICAL"];
+const ALL_STATUSES = ["All", "Paid 100%", "Invoice sent to HO", "To be Processed"];
+
+function PaymentStatusBadge({ status }: { status: string }) {
+  return (
+    <span
+      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold"
+      style={{
+        color: getPaymentStatusColor(status),
+        background: getPaymentStatusBg(status),
+      }}
+    >
+      {status}
+    </span>
+  );
+}
+
 export default function PurchaseOrdersPage() {
   const { state, addPurchaseOrder, addActivity } = useApp();
+  const { clientRecords } = useClientData();
+
+  const [mainTab, setMainTab] = useState("client");
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState("all");
   const [addOpen, setAddOpen] = useState(false);
   const [items, setItems] = useState<{ materialId: string; quantity: number; unitCost: number }[]>([
     { materialId: "", quantity: 1, unitCost: 0 }
   ]);
+
+  // Client PO filters
+  const [clientSearch, setClientSearch] = useState("");
+  const [disciplineFilter, setDisciplineFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("All");
 
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<POForm>({ resolver: zodResolver(poSchema) });
 
@@ -48,6 +75,16 @@ export default function PurchaseOrdersPage() {
       po.vendorName.toLowerCase().includes(search.toLowerCase());
     const matchTab = tab === "all" || po.status === tab;
     return matchSearch && matchTab;
+  });
+
+  const filteredClientRecords = clientRecords.filter((r) => {
+    const matchSearch = clientSearch === "" ||
+      r.po.poRef.toLowerCase().includes(clientSearch.toLowerCase()) ||
+      r.po.description.toLowerCase().includes(clientSearch.toLowerCase()) ||
+      r.po.vendorName.toLowerCase().includes(clientSearch.toLowerCase());
+    const matchDiscipline = disciplineFilter === "All" || r.po.discipline === disciplineFilter;
+    const matchStatus = statusFilter === "All" || r.invoice.paymentStatus === statusFilter;
+    return matchSearch && matchDiscipline && matchStatus;
   });
 
   const counts = {
@@ -107,82 +144,170 @@ export default function PurchaseOrdersPage() {
         title="Purchase Orders"
         subtitle="Create and track material procurement from vendors."
         actions={
-          <Button onClick={() => setAddOpen(true)} className="gap-2 text-white" style={{ background: "#E07B00" }}>
-            <Plus size={14} />Create PO
-          </Button>
+          mainTab === "demo" ? (
+            <Button onClick={() => setAddOpen(true)} className="gap-2 text-white" style={{ background: "#E07B00" }}>
+              <Plus size={14} />Create PO
+            </Button>
+          ) : undefined
         }
       />
 
-      <div className="grid grid-cols-4 gap-3.5 mb-5">
-        <StatCard label="Total PO Value" value={`PKR ${(totalValue / 1000000).toFixed(1)}M`} icon={FileText} />
-        <StatCard label="Active Orders" value={String(activePOs)} subtext="Sent + Partial" icon={Truck} variant="info" />
-        <StatCard label="Draft Orders" value={String(draftPOs)} subtext="Awaiting sending" icon={FileText} variant="warning" />
-        <StatCard label="Total POs" value={String(state.purchaseOrders.length)} icon={FileText} variant="success" />
-      </div>
+      <Tabs value={mainTab} onValueChange={setMainTab} className="mb-5">
+        <TabsList>
+          <TabsTrigger value="client">Client Data (18 POs)</TabsTrigger>
+          <TabsTrigger value="demo">Demo Data</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
-      <div className="flex items-center gap-3 mb-4">
-        <div className="relative flex-1 max-w-xs">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6A788D]" />
-          <Input placeholder="Search PO number, vendor..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
-        </div>
-        <Tabs value={tab} onValueChange={setTab}>
-          <TabsList>
-            <TabsTrigger value="all">All ({counts.all})</TabsTrigger>
-            <TabsTrigger value="Draft">Draft ({counts.Draft})</TabsTrigger>
-            <TabsTrigger value="Sent">Sent ({counts.Sent})</TabsTrigger>
-            <TabsTrigger value="Partial">Partial ({counts.Partial})</TabsTrigger>
-            <TabsTrigger value="Delivered">Delivered ({counts.Delivered})</TabsTrigger>
-            <TabsTrigger value="Completed">Completed ({counts.Completed})</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
+      {mainTab === "client" && (
+        <>
+          {/* Client PO Filters */}
+          <div className="flex items-center gap-3 mb-4 flex-wrap">
+            <div className="relative flex-1 max-w-xs">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6A788D]" />
+              <Input placeholder="Search PO ref, description, vendor..." className="pl-9" value={clientSearch} onChange={(e) => setClientSearch(e.target.value)} />
+            </div>
+            <Select value={disciplineFilter} onValueChange={(v) => setDisciplineFilter(v ?? "All")}>
+              <SelectTrigger className="w-44"><SelectValue placeholder="All Disciplines" /></SelectTrigger>
+              <SelectContent>
+                {ALL_DISCIPLINES.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v ?? "All")}>
+              <SelectTrigger className="w-48"><SelectValue placeholder="All Statuses" /></SelectTrigger>
+              <SelectContent>
+                {ALL_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <div className="ml-auto text-[13px] text-[#6A788D]">{filteredClientRecords.length} records</div>
+          </div>
 
-      <div className="bg-white rounded-xl border border-[#E3E8F0] overflow-hidden" style={{ boxShadow: "0 1px 2px rgba(20,34,59,0.04)" }}>
-        {filtered.length === 0 ? (
-          <EmptyState icon={FileText} title="No purchase orders found" description="Try adjusting your filters or create a new PO." />
-        ) : (
-          <table className="w-full text-[12.5px]">
-            <thead className="bg-[#F8F9FC]">
-              <tr className="border-b border-[#E3E8F0]">
-                {["PO Number", "Vendor", "Zone", "Total Amount", "Created", "Expected Delivery", "Delivery Progress", "Status", ""].map((h) => (
-                  <th key={h} className="text-left py-3 px-4 font-semibold text-[#6A788D] whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((po) => {
-                const totalOrdered = po.items.reduce((s, i) => s + i.quantity, 0);
-                const totalDelivered = po.items.reduce((s, i) => s + i.deliveredQty, 0);
-                const pct = totalOrdered > 0 ? Math.round((totalDelivered / totalOrdered) * 100) : 0;
-                return (
-                  <tr key={po.id} className="border-b border-[#F0F3F8] hover:bg-[#F8F9FC] transition-colors">
-                    <td className="py-3 px-4 font-mono-id font-semibold text-[#14223B]">{po.poNumber}</td>
-                    <td className="py-3 px-4 font-medium text-[#14223B]">{po.vendorName}</td>
-                    <td className="py-3 px-4 text-[#6A788D]">{po.zone}</td>
-                    <td className="py-3 px-4 font-semibold font-mono-id">{formatPKR(po.totalAmount)}</td>
-                    <td className="py-3 px-4 text-[#6A788D]">{po.createdDate}</td>
-                    <td className="py-3 px-4 text-[#6A788D]">{po.expectedDeliveryDate}</td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-20 h-[5px] bg-[#F0F3F8] rounded-full overflow-hidden">
-                          <div className="h-full rounded-full bg-[#1E8E55]" style={{ width: `${pct}%` }} />
-                        </div>
-                        <span className="text-[11.5px] text-[#6A788D]">{pct}%</span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4"><StatusBadge status={po.status} /></td>
-                    <td className="py-3 px-4">
-                      <Link href={`/purchase-orders/${po.id}`} className="flex items-center gap-1 text-[12px] font-semibold text-[#E07B00] hover:underline">
-                        View <ExternalLink size={11} />
-                      </Link>
-                    </td>
+          <div className="bg-white rounded-xl border border-[#E3E8F0] overflow-hidden" style={{ boxShadow: "0 1px 2px rgba(20,34,59,0.04)" }}>
+            {filteredClientRecords.length === 0 ? (
+              <EmptyState icon={FileText} title="No purchase orders found" description="Try adjusting your filters." />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-[12px]">
+                  <thead className="bg-[#F8F9FC]">
+                    <tr className="border-b border-[#E3E8F0]">
+                      {["Discipline", "PO Reference", "Vendor", "Initiated By", "Date Issued", "Description", "PO Amount", "Amount w/VAT", "INCO Term", "Payment Term", "Invoice Status", "Payment Status"].map((h) => (
+                        <th key={h} className="text-left py-3 px-3 font-semibold text-[#6A788D] whitespace-nowrap">{h}</th>
+                      ))}
+                      <th className="py-3 px-3" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredClientRecords.map(({ po, invoice }) => (
+                      <tr key={po.id} className="border-b border-[#F0F3F8] hover:bg-[#F8F9FC] transition-colors cursor-pointer">
+                        <td className="py-3 px-3">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-[#EFF6FF] text-[#1968D3]">
+                            {po.discipline}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 font-mono text-[12px] font-semibold text-[#14223B]">{po.poRef}</td>
+                        <td className="py-3 px-3 font-medium text-[#14223B]">{po.vendorName}</td>
+                        <td className="py-3 px-3 text-[#6A788D]">{po.initiatedBy}</td>
+                        <td className="py-3 px-3 text-[#6A788D]">{po.dateIssued}</td>
+                        <td className="py-3 px-3 text-[#14223B] max-w-[180px] truncate" title={po.description}>{po.description}</td>
+                        <td className="py-3 px-3 font-mono text-[12px] font-semibold text-[#14223B]">{formatSAR(po.poAmount)}</td>
+                        <td className="py-3 px-3 font-mono text-[12px] font-semibold text-[#14223B]">{formatSAR(po.amountWithVatSar)}</td>
+                        <td className="py-3 px-3 text-[#6A788D]">{po.incoTerm}</td>
+                        <td className="py-3 px-3 text-[#6A788D] whitespace-nowrap">{po.paymentTerm}</td>
+                        <td className="py-3 px-3">
+                          <span className="font-mono text-[12px] text-[#6A788D]">{invoice?.invoiceRef ?? "—"}</span>
+                        </td>
+                        <td className="py-3 px-3">
+                          {invoice && <PaymentStatusBadge status={invoice.paymentStatus} />}
+                        </td>
+                        <td className="py-3 px-3">
+                          <Link href={`/purchase-orders/${po.id}`} className="flex items-center gap-1 text-[12px] font-semibold text-[#E07B00] hover:underline whitespace-nowrap">
+                            View <ExternalLink size={11} />
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {mainTab === "demo" && (
+        <>
+          <div className="grid grid-cols-4 gap-3.5 mb-5">
+            <StatCard label="Total PO Value" value={`PKR ${(totalValue / 1000000).toFixed(1)}M`} icon={FileText} />
+            <StatCard label="Active Orders" value={String(activePOs)} subtext="Sent + Partial" icon={Truck} variant="info" />
+            <StatCard label="Draft Orders" value={String(draftPOs)} subtext="Awaiting sending" icon={FileText} variant="warning" />
+            <StatCard label="Total POs" value={String(state.purchaseOrders.length)} icon={FileText} variant="success" />
+          </div>
+
+          <div className="flex items-center gap-3 mb-4">
+            <div className="relative flex-1 max-w-xs">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6A788D]" />
+              <Input placeholder="Search PO number, vendor..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+            </div>
+            <Tabs value={tab} onValueChange={setTab}>
+              <TabsList>
+                <TabsTrigger value="all">All ({counts.all})</TabsTrigger>
+                <TabsTrigger value="Draft">Draft ({counts.Draft})</TabsTrigger>
+                <TabsTrigger value="Sent">Sent ({counts.Sent})</TabsTrigger>
+                <TabsTrigger value="Partial">Partial ({counts.Partial})</TabsTrigger>
+                <TabsTrigger value="Delivered">Delivered ({counts.Delivered})</TabsTrigger>
+                <TabsTrigger value="Completed">Completed ({counts.Completed})</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+
+          <div className="bg-white rounded-xl border border-[#E3E8F0] overflow-hidden" style={{ boxShadow: "0 1px 2px rgba(20,34,59,0.04)" }}>
+            {filtered.length === 0 ? (
+              <EmptyState icon={FileText} title="No purchase orders found" description="Try adjusting your filters or create a new PO." />
+            ) : (
+              <table className="w-full text-[12.5px]">
+                <thead className="bg-[#F8F9FC]">
+                  <tr className="border-b border-[#E3E8F0]">
+                    {["PO Number", "Vendor", "Zone", "Total Amount", "Created", "Expected Delivery", "Delivery Progress", "Status", ""].map((h) => (
+                      <th key={h} className="text-left py-3 px-4 font-semibold text-[#6A788D] whitespace-nowrap">{h}</th>
+                    ))}
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+                </thead>
+                <tbody>
+                  {filtered.map((po) => {
+                    const totalOrdered = po.items.reduce((s, i) => s + i.quantity, 0);
+                    const totalDelivered = po.items.reduce((s, i) => s + i.deliveredQty, 0);
+                    const pct = totalOrdered > 0 ? Math.round((totalDelivered / totalOrdered) * 100) : 0;
+                    return (
+                      <tr key={po.id} className="border-b border-[#F0F3F8] hover:bg-[#F8F9FC] transition-colors">
+                        <td className="py-3 px-4 font-mono-id font-semibold text-[#14223B]">{po.poNumber}</td>
+                        <td className="py-3 px-4 font-medium text-[#14223B]">{po.vendorName}</td>
+                        <td className="py-3 px-4 text-[#6A788D]">{po.zone}</td>
+                        <td className="py-3 px-4 font-semibold font-mono-id">{formatPKR(po.totalAmount)}</td>
+                        <td className="py-3 px-4 text-[#6A788D]">{po.createdDate}</td>
+                        <td className="py-3 px-4 text-[#6A788D]">{po.expectedDeliveryDate}</td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-20 h-[5px] bg-[#F0F3F8] rounded-full overflow-hidden">
+                              <div className="h-full rounded-full bg-[#1E8E55]" style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="text-[11.5px] text-[#6A788D]">{pct}%</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4"><StatusBadge status={po.status} /></td>
+                        <td className="py-3 px-4">
+                          <Link href={`/purchase-orders/${po.id}`} className="flex items-center gap-1 text-[12px] font-semibold text-[#E07B00] hover:underline">
+                            View <ExternalLink size={11} />
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </>
+      )}
 
       {/* Create PO Sheet */}
       <Sheet open={addOpen} onOpenChange={setAddOpen}>

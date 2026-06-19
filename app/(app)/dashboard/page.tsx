@@ -1,30 +1,33 @@
 "use client";
 
 import { useApp } from "@/lib/app-context";
+import { useClientData } from "@/lib/client-data/client-context";
 import { formatPKR, isOverdue, isDueSoon } from "@/lib/store";
+import { formatSAR, getPaymentStatusColor, getPaymentStatusBg } from "@/lib/client-data/utils";
 import { StatCard } from "@/components/ui-custom/stat-card";
 import { StatusBadge } from "@/components/ui-custom/status-badge";
 import { ChartCard } from "@/components/ui-custom/chart-card";
 import { PageHeader } from "@/components/ui-custom/page-header";
+import { ClientDataBanner } from "@/components/ui-custom/client-data-banner";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from "recharts";
 import {
   TrendingUp, Package, FileText, Truck, Receipt,
-  AlertTriangle, Trash2, Clock, ArrowRight,
+  AlertTriangle, Trash2, Clock, ArrowRight, DollarSign, CheckCircle, Building2,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
+import { clientPOs } from "@/lib/client-data/data";
 
 const ACCENT = "#E07B00";
 const SUCCESS = "#1E8E55";
 const WARNING = "#C8901F";
 const DANGER = "#C0453F";
 const INFO = "#1968D3";
-
 const CHART_COLORS = [ACCENT, INFO, SUCCESS, WARNING, DANGER, "#8B5CF6"];
 
 function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number; name: string; fill: string }[]; label?: string }) {
@@ -43,8 +46,25 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
   );
 }
 
+function SARTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number; name: string; fill: string }[]; label?: string }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-white border border-[#E3E8F0] rounded-lg p-3 shadow-lg text-[12px]">
+      {label && <div className="font-semibold text-[#14223B] mb-1">{label}</div>}
+      {payload.map((p) => (
+        <div key={p.name} className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full" style={{ background: p.fill }} />
+          <span className="text-[#6A788D]">{p.name}:</span>
+          <span className="font-semibold text-[#14223B]">{formatSAR(p.value)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const { state } = useApp();
+  const { stats, clientInvoices } = useClientData();
 
   // KPI calculations
   const totalSpend = state.payments.reduce((s, p) => s + p.amount, 0);
@@ -106,7 +126,7 @@ export default function DashboardPage() {
 
   // Open alerts
   const openAlerts = state.alerts.filter((a) => a.status === "Open").sort((a, b) => {
-    const p = { Critical: 0, High: 1, Medium: 2, Low: 3 };
+    const p: Record<string, number> = { Critical: 0, High: 1, Medium: 2, Low: 3 };
     return (p[a.priority] ?? 3) - (p[b.priority] ?? 3);
   });
 
@@ -123,8 +143,25 @@ export default function DashboardPage() {
     { name: "Finishing", pct: 5, color: DANGER },
   ];
 
+  // Client payment status pie
+  const clientPaymentPie = [
+    { name: "Paid 100%", value: stats.totalPaid },
+    { name: "Invoice sent to HO", value: clientInvoices.filter(i => i.paymentStatus === "Invoice sent to HO").reduce((s, i) => s + i.invoiceAmountWithVat, 0) },
+    { name: "To be Processed", value: clientInvoices.filter(i => i.paymentStatus === "To be Processed").reduce((s, i) => s + i.invoiceAmountWithVat, 0) },
+  ].filter(d => d.value > 0);
+  const CLIENT_PIE_COLORS = [SUCCESS, INFO, WARNING];
+
+  // PO Value by Discipline
+  const disciplines = ["TSF", "Safety Equipments", "Consumables", "ELECTRICAL"];
+  const disciplineData = disciplines.map((disc) => ({
+    name: disc,
+    value: clientPOs.filter(po => po.discipline === disc).reduce((s, po) => s + po.amountWithVatSar, 0),
+  })).filter(d => d.value > 0);
+
   return (
     <div className="animate-fade-in-up">
+      <ClientDataBanner />
+
       <PageHeader
         title="National Stadium Construction"
         subtitle="Inventory, procurement, deliveries, invoices, payments and site activity — one command center."
@@ -137,6 +174,56 @@ export default function DashboardPage() {
           </Link>
         }
       />
+
+      {/* Client KPI Cards */}
+      <div className="mb-2">
+        <div className="text-[11px] font-bold tracking-[0.1em] uppercase text-[#6A788D] mb-3">Client Data — Jeddah Stadium</div>
+      </div>
+      <div className="grid grid-cols-4 gap-3.5 mb-5">
+        <StatCard label="Total PO Value (w/ VAT)" value={formatSAR(stats.totalPoValueWithVat)} subtext="All 18 purchase orders" icon={FileText} variant="info" />
+        <StatCard label="Total Invoice Value" value={formatSAR(stats.totalInvoiceValueWithVat)} subtext="18 invoices issued" icon={Receipt} />
+        <StatCard label="Total Paid" value={formatSAR(stats.totalPaid)} subtext={`${stats.paidCount} invoices paid`} icon={CheckCircle} variant="success" />
+        <StatCard label="Total Pending" value={formatSAR(stats.totalPending)} subtext="Unpaid balance" icon={DollarSign} variant="warning" />
+        <StatCard label="Paid Invoices" value={`${stats.paidCount} / 18`} subtext="Fully settled" icon={CheckCircle} variant="success" />
+        <StatCard label="Invoice Sent to HO" value={String(stats.invoiceSentToHoCount)} subtext="Awaiting HO release" icon={Receipt} variant="info" />
+        <StatCard label="To Be Processed" value={String(stats.toBeProcessedCount)} subtext="Not yet submitted" icon={Clock} variant="warning" />
+        <StatCard label="Overdue Items" value={String(stats.overdueCount)} subtext="Past due date, unpaid" icon={AlertTriangle} variant={stats.overdueCount > 0 ? "danger" : "success"} />
+      </div>
+
+      {/* Client Charts Row */}
+      <div className="grid grid-cols-3 gap-4 mb-5">
+        <ChartCard title="Payment Status" subtitle="Invoice value by payment status">
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie data={clientPaymentPie} cx="50%" cy="45%" innerRadius={55} outerRadius={80} paddingAngle={3} dataKey="value">
+                {clientPaymentPie.map((_, i) => <Cell key={i} fill={CLIENT_PIE_COLORS[i]} />)}
+              </Pie>
+              <Tooltip formatter={(v) => formatSAR(Number(v))} />
+              <Legend formatter={(v) => <span style={{ fontSize: 11, color: "#6A788D" }}>{v}</span>} />
+            </PieChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard title="PO Value by Discipline" subtitle="Amount w/ VAT per discipline" className="col-span-2">
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={disciplineData} layout="vertical" margin={{ left: 10 }}>
+              <XAxis type="number" tick={{ fontSize: 11, fill: "#6A788D" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
+              <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "#6A788D" }} axisLine={false} tickLine={false} width={110} />
+              <Tooltip content={<SARTooltip />} />
+              <Bar dataKey="value" name="PO Value" radius={[0, 4, 4, 0]}>
+                {disciplineData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      </div>
+
+      {/* Divider */}
+      <div className="flex items-center gap-3 mb-5">
+        <div className="h-px flex-1 bg-[#E3E8F0]" />
+        <span className="text-[11px] font-bold tracking-[0.1em] uppercase text-[#6A788D]">Demo Data — National Stadium</span>
+        <div className="h-px flex-1 bg-[#E3E8F0]" />
+      </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-4 gap-3.5 mb-5">
@@ -165,7 +252,7 @@ export default function DashboardPage() {
           </div>
           <div className="flex flex-col gap-2.5">
             {openAlerts.slice(0, 5).map((alert) => {
-              const colors = { Critical: DANGER, High: WARNING, Medium: "#C8901F", Low: INFO };
+              const colors: Record<string, string> = { Critical: DANGER, High: WARNING, Medium: "#C8901F", Low: INFO };
               const color = colors[alert.priority] ?? INFO;
               return (
                 <div key={alert.id} className="flex items-start gap-3 p-3 rounded-lg bg-[#F5F7FB] border border-[#E3E8F0]">

@@ -7,7 +7,7 @@ import { demoOpenAlerts, demoOpenInvoices } from "@/lib/demo-shell";
 import {
   LayoutDashboard, Package, FileText, Truck, Receipt,
   CreditCard, Building2, Trash2, AlertTriangle, Activity,
-  BarChart3, Settings,
+  BarChart3, Settings, Upload,
 } from "lucide-react";
 
 const navSections = [
@@ -30,6 +30,7 @@ const navSections = [
       { href: "/alerts", label: "Alerts", icon: AlertTriangle, badge: "alerts" },
       { href: "/activity", label: "Activity Log", icon: Activity },
       { href: "/reports", label: "Reports", icon: BarChart3 },
+      { href: "/data-import", label: "Data Import", icon: Upload },
       { href: "/settings", label: "Settings", icon: Settings },
     ],
   },

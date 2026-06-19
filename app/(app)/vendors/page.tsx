@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import { useApp } from "@/lib/app-context";
+import { useClientData } from "@/lib/client-data/client-context";
 import { formatPKR, generateId } from "@/lib/store";
+import { formatSAR, getPaymentStatusColor, getPaymentStatusBg } from "@/lib/client-data/utils";
+import { ClientDataBanner } from "@/components/ui-custom/client-data-banner";
 import { PageHeader } from "@/components/ui-custom/page-header";
 import { StatCard } from "@/components/ui-custom/stat-card";
 import { StatusBadge } from "@/components/ui-custom/status-badge";
@@ -30,8 +33,17 @@ const vendorSchema = z.object({
 });
 type VendorForm = z.infer<typeof vendorSchema>;
 
+function PaymentStatusBadge({ status }: { status: string }) {
+  return (
+    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-semibold" style={{ color: getPaymentStatusColor(status), background: getPaymentStatusBg(status) }}>
+      {status}
+    </span>
+  );
+}
+
 export default function VendorsPage() {
   const { state, addVendor, addActivity } = useApp();
+  const { stats, clientInvoices } = useClientData();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [addOpen, setAddOpen] = useState(false);
@@ -76,8 +88,60 @@ export default function VendorsPage() {
     setAddOpen(false);
   }
 
+  const latestInvoiceDate = clientInvoices.reduce((latest, inv) => inv.invoiceDate > latest ? inv.invoiceDate : latest, "");
+  const statusBreakdown = [
+    { label: "Paid 100%", count: stats.paidCount, color: "#1E8E55", bg: "#ECFDF5" },
+    { label: "Invoice sent to HO", count: stats.invoiceSentToHoCount, color: "#1968D3", bg: "#EFF6FF" },
+    { label: "To be Processed", count: stats.toBeProcessedCount, color: "#C8901F", bg: "#FFFBEB" },
+  ];
+
   return (
     <div className="animate-fade-in-up">
+      <ClientDataBanner />
+      {/* Client Vendor Card */}
+      <div className="mb-6 rounded-xl border border-[#E07B00]/30 overflow-hidden" style={{ background: "linear-gradient(135deg,#FFF8F0 0%,#FFFDF9 100%)", boxShadow: "0 1px 4px rgba(224,123,0,0.08)" }}>
+        <div className="px-6 py-4 border-b border-[#E07B00]/15 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white text-[14px]" style={{ background: "#E07B00" }}>AZ</div>
+            <div>
+              <div className="font-bold text-[#14223B] text-[15px]">AZRAQ AL BAHAR TRADING</div>
+              <div className="text-[12px] text-[#6A788D]">Client Vendor · Jeddah Stadium 2034 · All disciplines</div>
+            </div>
+          </div>
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold text-white" style={{ background: "#1E8E55" }}>Active</span>
+        </div>
+        <div className="px-6 py-4 grid grid-cols-4 gap-6">
+          <div>
+            <div className="text-[11px] text-[#6A788D] font-medium mb-0.5">Total POs</div>
+            <div className="text-[22px] font-bold text-[#14223B]">18</div>
+            <div className="text-[11px] text-[#6A788D]">Avg credit: {stats.avgCreditDays} days</div>
+          </div>
+          <div>
+            <div className="text-[11px] text-[#6A788D] font-medium mb-0.5">Total PO Value w/VAT</div>
+            <div className="text-[18px] font-bold text-[#14223B]">{formatSAR(stats.totalPoValueWithVat)}</div>
+            <div className="text-[11px] text-[#6A788D]">Invoice value: {formatSAR(stats.totalInvoiceValueWithVat)}</div>
+          </div>
+          <div>
+            <div className="text-[11px] text-[#6A788D] font-medium mb-0.5">Total Paid</div>
+            <div className="text-[18px] font-bold text-[#1E8E55]">{formatSAR(stats.totalPaid)}</div>
+            <div className="text-[11px] text-[#6A788D]">Pending: {formatSAR(stats.totalPending)}</div>
+          </div>
+          <div>
+            <div className="text-[11px] text-[#6A788D] font-medium mb-0.5">Latest Invoice</div>
+            <div className="text-[16px] font-bold text-[#14223B]">{latestInvoiceDate}</div>
+            <div className="text-[11px] text-[#6A788D]">Overdue items: {stats.overdueCount}</div>
+          </div>
+        </div>
+        <div className="px-6 pb-4 flex items-center gap-2">
+          {statusBreakdown.map((s) => (
+            <span key={s.label} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11.5px] font-semibold" style={{ color: s.color, background: s.bg }}>
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.color }} />
+              {s.count} {s.label}
+            </span>
+          ))}
+        </div>
+      </div>
+
       <PageHeader
         title="Vendors"
         subtitle="Manage construction material suppliers and track their performance."
