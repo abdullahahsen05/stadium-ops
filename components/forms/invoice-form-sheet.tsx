@@ -190,17 +190,17 @@ export function InvoiceFormSheet({ open, onClose, editInvoice, prefillPO }: Prop
 
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <SheetContent className="w-full sm:max-w-xl overflow-y-auto" side="right">
-        <SheetHeader className="mb-4">
-          <SheetTitle>{isEdit ? "Edit Invoice" : "Add Invoice"}</SheetTitle>
+      <SheetContent className="w-full sm:max-w-xl overflow-y-auto px-7 py-7" side="right">
+        <SheetHeader className="mb-7">
+          <SheetTitle className="text-[17px]">{isEdit ? "Edit Invoice" : "Add Invoice"}</SheetTitle>
         </SheetHeader>
 
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-5">
           {/* PO + Vendor */}
-          <div className="grid gap-1.5">
-            <Label>Related Purchase Order</Label>
+          <div className="grid gap-2">
+            <Label className="text-[13px]">Related Purchase Order</Label>
             <Select value={selectedPOId} onValueChange={(v) => setSelectedPOId(v ?? "")}>
-              <SelectTrigger>
+              <SelectTrigger className="h-10">
                 <SelectValue placeholder={isEdit ? "— (leave to keep)" : "Select PO (optional)"} />
               </SelectTrigger>
               <SelectContent>
@@ -213,71 +213,79 @@ export function InvoiceFormSheet({ open, onClose, editInvoice, prefillPO }: Prop
             </Select>
           </div>
 
-          <div className="grid gap-1.5">
-            <Label>Vendor *</Label>
+          <div className="grid gap-2">
+            <Label className="text-[13px]">Vendor *</Label>
             <Input
               value={vendorName}
               onChange={(e) => setVendorName(e.target.value)}
               placeholder="Vendor name"
+              className="h-10"
             />
           </div>
 
-          <Separator />
+          <div className="my-1">
+            <Separator />
+            <div className="text-[11px] font-semibold text-[#9AA6B6] uppercase tracking-[0.1em] mt-4 mb-1">Invoice Details</div>
+          </div>
 
           {/* Invoice core */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="grid gap-1.5">
-              <Label>Invoice Reference *</Label>
-              <Input value={invoiceRef} onChange={(e) => setInvoiceRef(e.target.value)} placeholder="INV-001" />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label className="text-[13px]">Invoice Reference *</Label>
+              <Input value={invoiceRef} onChange={(e) => setInvoiceRef(e.target.value)} placeholder="INV-001" className="h-10" />
             </div>
-            <div className="grid gap-1.5">
-              <Label>Invoice Date *</Label>
-              <Input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} />
+            <div className="grid gap-2">
+              <Label className="text-[13px]">Invoice Date *</Label>
+              <Input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} className="h-10" />
             </div>
           </div>
 
-          <div className="grid gap-1.5">
-            <Label>Invoice Amount with VAT (SAR) *</Label>
+          <div className="grid gap-2">
+            <Label className="text-[13px]">Invoice Amount with VAT (SAR) *</Label>
             <Input
               type="number"
               value={invoiceAmtStr}
               onChange={(e) => setInvoiceAmtStr(e.target.value)}
               placeholder="0.00"
               step="0.01"
+              className="h-10"
             />
             {safeNum(invoiceAmtStr) > 0 && (
-              <p className="text-[11px] text-[#6A788D]">
+              <p className="text-[11.5px] text-[#9AA6B6]">
                 ≈ Ex-VAT: SAR {(safeNum(invoiceAmtStr) / (1 + VAT_RATE)).toLocaleString("en-SA", { maximumFractionDigits: 2 })}
               </p>
             )}
           </div>
 
-          <Separator />
+          <div className="my-1">
+            <Separator />
+            <div className="text-[11px] font-semibold text-[#9AA6B6] uppercase tracking-[0.1em] mt-4 mb-1">Payment Request</div>
+          </div>
 
-          {/* Payment request */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="grid gap-1.5">
-              <Label>Payment Requested Amount</Label>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label className="text-[13px]">Requested Amount</Label>
               <Input
                 type="number"
                 value={payReqAmtStr}
                 onChange={(e) => setPayReqAmtStr(e.target.value)}
                 placeholder="Defaults to invoice amount"
                 step="0.01"
+                className="h-10"
               />
             </div>
-            <div className="grid gap-1.5">
-              <Label>Payment Requested Date</Label>
-              <Input type="date" value={payReqDate} onChange={(e) => setPayReqDate(e.target.value)} />
+            <div className="grid gap-2">
+              <Label className="text-[13px]">Requested Date</Label>
+              <Input type="date" value={payReqDate} onChange={(e) => setPayReqDate(e.target.value)} className="h-10" />
             </div>
           </div>
 
           {/* Credit + due date */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="grid gap-1.5">
-              <Label>Credit Days</Label>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label className="text-[13px]">Credit Days</Label>
               <Select value={creditDaysStr} onValueChange={(v) => setCreditDaysStr(v ?? "60")}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {["30", "45", "60", "90", "120"].map((d) => (
                     <SelectItem key={d} value={d}>{d} days</SelectItem>
@@ -285,18 +293,16 @@ export function InvoiceFormSheet({ open, onClose, editInvoice, prefillPO }: Prop
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-1.5">
-              <Label>Due Date</Label>
-              <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            <div className="grid gap-2">
+              <Label className="text-[13px]">Due Date <span className="text-[#9AA6B6] font-normal">(auto-calc)</span></Label>
+              <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="h-10" />
             </div>
           </div>
 
-          <Separator />
-
-          <div className="grid gap-1.5">
-            <Label>Payment Status</Label>
+          <div className="grid gap-2">
+            <Label className="text-[13px]">Payment Status</Label>
             <Select value={paymentStatus} onValueChange={(v) => setPaymentStatus(v ?? "To be Processed")}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {PAYMENT_STATUSES.map((s) => (
                   <SelectItem key={s} value={s}>{s}</SelectItem>
@@ -305,16 +311,16 @@ export function InvoiceFormSheet({ open, onClose, editInvoice, prefillPO }: Prop
             </Select>
           </div>
 
-          <div className="grid gap-1.5">
-            <Label>Notes</Label>
+          <div className="grid gap-2">
+            <Label className="text-[13px]">Notes</Label>
             <Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional notes..." />
           </div>
 
           {/* Actions */}
-          <div className="flex gap-2 pt-2">
-            <Button variant="outline" className="flex-1" onClick={onClose} disabled={saving}>Cancel</Button>
+          <div className="flex gap-3 pt-3">
+            <Button variant="outline" className="flex-1 h-10" onClick={onClose} disabled={saving}>Cancel</Button>
             <Button
-              className="flex-1 text-white"
+              className="flex-1 h-10 text-white"
               style={{ background: "#E07B00" }}
               onClick={handleSave}
               disabled={saving}

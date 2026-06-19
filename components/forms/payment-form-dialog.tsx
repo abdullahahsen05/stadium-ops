@@ -109,18 +109,18 @@ export function PaymentFormDialog({ open, onClose, prefillInvoice }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Record Payment</DialogTitle>
+      <DialogContent className="sm:max-w-[480px] p-7">
+        <DialogHeader className="mb-6">
+          <DialogTitle className="text-[17px]">Record Payment</DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-col gap-4 mt-1">
+        <div className="flex flex-col gap-5">
           {/* Invoice selection (only when no prefill) */}
           {!prefillInvoice && (
-            <div className="grid gap-1.5">
-              <Label>Invoice *</Label>
+            <div className="grid gap-2">
+              <Label className="text-[13px]">Invoice *</Label>
               <Select value={selectedInvoiceId} onValueChange={(v) => setSelectedInvoiceId(v ?? "")}>
-                <SelectTrigger>
+                <SelectTrigger className="h-10">
                   <SelectValue placeholder="Select invoice..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -136,39 +136,39 @@ export function PaymentFormDialog({ open, onClose, prefillInvoice }: Props) {
 
           {/* Invoice summary */}
           {selectedInvoice && (
-            <div className="bg-[#F8F9FC] rounded-lg p-3 text-[12.5px] space-y-1">
+            <div className="bg-[#F8F9FC] rounded-xl p-4 text-[13px] space-y-2 border border-[#E3E8F0]">
               <div className="flex justify-between">
-                <span className="text-[#6A788D]">Invoice:</span>
+                <span className="text-[#6A788D]">Invoice</span>
                 <span className="font-semibold font-mono">{selectedInvoice.invoiceRef}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#6A788D]">Vendor:</span>
+                <span className="text-[#6A788D]">Vendor</span>
                 <span className="font-semibold">{selectedInvoice.vendorName}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#6A788D]">Invoice Amount:</span>
+                <span className="text-[#6A788D]">Invoice Amount</span>
                 <span className="font-semibold">{formatSAR(selectedInvoice.invoiceAmountWithVat)}</span>
               </div>
               {selectedInvoice.paidAmount > 0 && (
                 <div className="flex justify-between">
-                  <span className="text-[#6A788D]">Already Paid:</span>
+                  <span className="text-[#6A788D]">Already Paid</span>
                   <span className="font-semibold text-[#1E8E55]">{formatSAR(selectedInvoice.paidAmount)}</span>
                 </div>
               )}
-              <div className="flex justify-between border-t border-[#E3E8F0] pt-1 mt-1">
-                <span className="text-[#6A788D] font-semibold">Outstanding:</span>
-                <span className="font-bold text-[#C8901F]">{formatSAR(pending)}</span>
+              <div className="flex justify-between border-t border-[#E3E8F0] pt-2 mt-1">
+                <span className="text-[#6A788D] font-semibold">Outstanding</span>
+                <span className="font-bold text-[#C8901F] text-[14px]">{formatSAR(pending)}</span>
               </div>
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="grid gap-1.5">
-              <Label>Payment Date</Label>
-              <Input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label className="text-[13px]">Payment Date</Label>
+              <Input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} className="h-10" />
             </div>
-            <div className="grid gap-1.5">
-              <Label>Amount (SAR) *</Label>
+            <div className="grid gap-2">
+              <Label className="text-[13px]">Amount (SAR) *</Label>
               <Input
                 type="number"
                 value={payAmtStr}
@@ -176,38 +176,39 @@ export function PaymentFormDialog({ open, onClose, prefillInvoice }: Props) {
                 placeholder="0.00"
                 step="0.01"
                 max={pending}
+                className="h-10"
               />
             </div>
           </div>
 
-          <div className="grid gap-1.5">
-            <Label>Reference Number *</Label>
-            <Input value={payRef} onChange={(e) => setPayRef(e.target.value)} placeholder="TXN / Bank ref / Cheque no." />
+          <div className="grid gap-2">
+            <Label className="text-[13px]">Reference Number *</Label>
+            <Input value={payRef} onChange={(e) => setPayRef(e.target.value)} placeholder="TXN / Bank ref / Cheque no." className="h-10" />
           </div>
 
-          <div className="grid gap-1.5">
-            <Label>Payment Method</Label>
+          <div className="grid gap-2">
+            <Label className="text-[13px]">Payment Method</Label>
             <Select value={payMethod} onValueChange={(v) => setPayMethod(v ?? "Bank Transfer")}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {PAYMENT_METHODS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
 
-          <div className="grid gap-1.5">
-            <Label>Notes</Label>
+          <div className="grid gap-2">
+            <Label className="text-[13px]">Notes</Label>
             <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional..." />
           </div>
 
-          <div className="text-[11.5px] text-[#6A788D] bg-[#F8F9FC] rounded-lg p-2.5">
-            Partial payment → <strong>Partially Paid</strong>. Full amount → <strong>Paid 100%</strong>.
+          <div className="text-[12px] text-[#6A788D] bg-[#F8F9FC] border border-[#E3E8F0] rounded-lg px-4 py-3">
+            Partial payment → <strong>Partially Paid</strong> · Full amount → <strong>Paid 100%</strong>
           </div>
 
-          <div className="flex gap-2">
-            <Button variant="outline" className="flex-1" onClick={onClose} disabled={saving}>Cancel</Button>
+          <div className="flex gap-3 pt-1">
+            <Button variant="outline" className="flex-1 h-10" onClick={onClose} disabled={saving}>Cancel</Button>
             <Button
-              className="flex-1 text-white"
+              className="flex-1 h-10 text-white"
               style={{ background: "#1E8E55" }}
               onClick={handlePay}
               disabled={saving}

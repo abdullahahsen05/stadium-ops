@@ -82,61 +82,62 @@ export function VendorFormSheet({ open, onClose }: Props) {
 
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <SheetContent className="w-full sm:max-w-md overflow-y-auto" side="right">
-        <SheetHeader className="mb-4">
-          <SheetTitle>Add Vendor</SheetTitle>
+      <SheetContent className="w-full sm:max-w-md overflow-y-auto px-7 py-7" side="right">
+        <SheetHeader className="mb-7">
+          <SheetTitle className="text-[17px]">Add Vendor</SheetTitle>
         </SheetHeader>
 
-        <div className="flex flex-col gap-4">
-          <div className="grid gap-1.5">
-            <Label>Vendor Name *</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Company name" />
+        <div className="flex flex-col gap-5">
+          <div className="grid gap-2">
+            <Label className="text-[13px]">Vendor Name *</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Company name" className="h-10" />
           </div>
 
-          <div className="grid gap-1.5">
-            <Label>Category / Discipline *</Label>
+          <div className="grid gap-2">
+            <Label className="text-[13px]">Category / Discipline *</Label>
             <Select value={category} onValueChange={(v) => setCategory(v ?? "")}>
-              <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+              <SelectTrigger className="h-10"><SelectValue placeholder="Select category" /></SelectTrigger>
               <SelectContent>
                 {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
 
-          <Separator />
-
-          <div className="text-[12px] font-semibold text-[#6A788D] uppercase tracking-wider">Contact</div>
-
-          <div className="grid gap-1.5">
-            <Label>Contact Person</Label>
-            <Input value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} placeholder="Full name" />
+          <div className="my-1">
+            <Separator />
+            <div className="text-[11px] font-semibold text-[#9AA6B6] uppercase tracking-[0.1em] mt-4 mb-1">Contact Details</div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="grid gap-1.5">
-              <Label>Email</Label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@vendor.com" />
+          <div className="grid gap-2">
+            <Label className="text-[13px]">Contact Person</Label>
+            <Input value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} placeholder="Full name" className="h-10" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label className="text-[13px]">Email</Label>
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@vendor.com" className="h-10" />
             </div>
-            <div className="grid gap-1.5">
-              <Label>Phone</Label>
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+966..." />
+            <div className="grid gap-2">
+              <Label className="text-[13px]">Phone</Label>
+              <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+966..." className="h-10" />
             </div>
           </div>
 
-          <div className="grid gap-1.5">
-            <Label>Address</Label>
-            <Textarea rows={2} value={address} onChange={(e) => setAddress(e.target.value)} placeholder="City, Country" />
+          <div className="grid gap-2">
+            <Label className="text-[13px]">Address</Label>
+            <Textarea rows={3} value={address} onChange={(e) => setAddress(e.target.value)} placeholder="City, Country" />
           </div>
 
-          <div className="grid gap-1.5">
-            <Label>Notes</Label>
-            <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional notes..." />
+          <div className="grid gap-2">
+            <Label className="text-[13px]">Notes</Label>
+            <Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional notes..." />
           </div>
 
-          <div className="flex gap-2 pt-2">
-            <Button variant="outline" className="flex-1" onClick={onClose} disabled={saving}>Cancel</Button>
+          <div className="flex gap-3 pt-3">
+            <Button variant="outline" className="flex-1 h-10" onClick={onClose} disabled={saving}>Cancel</Button>
             <Button
-              className="flex-1 text-white"
+              className="flex-1 h-10 text-white"
               style={{ background: "#E07B00" }}
               onClick={handleSave}
               disabled={saving}

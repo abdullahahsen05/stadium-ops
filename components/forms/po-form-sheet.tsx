@@ -188,41 +188,43 @@ export function POFormSheet({ open, onClose, editPO }: Props) {
 
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <SheetContent className="w-full sm:max-w-xl overflow-y-auto" side="right">
-        <SheetHeader className="mb-4">
-          <SheetTitle>{isEdit ? `Edit PO — ${editPO?.poRef}` : "Create Purchase Order"}</SheetTitle>
+      <SheetContent className="w-full sm:max-w-xl overflow-y-auto px-7 py-7" side="right">
+        <SheetHeader className="mb-7">
+          <SheetTitle className="text-[17px]">{isEdit ? `Edit PO — ${editPO?.poRef}` : "Create Purchase Order"}</SheetTitle>
         </SheetHeader>
 
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-5">
           {/* PO Ref (create only) */}
           {!isEdit && (
-            <div className="grid gap-1.5">
-              <Label>PO Reference *</Label>
-              <Input value={poRef} onChange={(e) => setPoRef(e.target.value)} placeholder="PO-JED-001" />
+            <div className="grid gap-2">
+              <Label className="text-[13px]">PO Reference *</Label>
+              <Input value={poRef} onChange={(e) => setPoRef(e.target.value)} placeholder="PO-JED-001" className="h-10" />
             </div>
           )}
 
           {/* Discipline + Vendor */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="grid gap-1.5">
-              <Label>Discipline *</Label>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label className="text-[13px]">Discipline *</Label>
               <Input
                 value={discipline}
                 onChange={(e) => setDiscipline(e.target.value)}
                 placeholder="e.g. TSF, Electrical"
                 list="discipline-list"
+                className="h-10"
               />
               <datalist id="discipline-list">
                 {disciplines.map((d) => <option key={d} value={d} />)}
               </datalist>
             </div>
-            <div className="grid gap-1.5">
-              <Label>Vendor *</Label>
+            <div className="grid gap-2">
+              <Label className="text-[13px]">Vendor *</Label>
               <Input
                 value={vendorName}
                 onChange={(e) => setVendorName(e.target.value)}
                 placeholder="Vendor name"
                 list="vendor-list"
+                className="h-10"
               />
               <datalist id="vendor-list">
                 {vendorSuggestions.map((v) => <option key={v} value={v} />)}
@@ -231,31 +233,31 @@ export function POFormSheet({ open, onClose, editPO }: Props) {
           </div>
 
           {/* Meta */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="grid gap-1.5">
-              <Label>Initiated By</Label>
-              <Input value={initiatedBy} onChange={(e) => setInitiatedBy(e.target.value)} placeholder="Name" />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label className="text-[13px]">Initiated By</Label>
+              <Input value={initiatedBy} onChange={(e) => setInitiatedBy(e.target.value)} placeholder="Name" className="h-10" />
             </div>
-            <div className="grid gap-1.5">
-              <Label>Date Issued</Label>
-              <Input type="date" value={dateIssued} onChange={(e) => setDateIssued(e.target.value)} />
+            <div className="grid gap-2">
+              <Label className="text-[13px]">Date Issued</Label>
+              <Input type="date" value={dateIssued} onChange={(e) => setDateIssued(e.target.value)} className="h-10" />
             </div>
           </div>
 
-          <div className="grid gap-1.5">
-            <Label>Item Description *</Label>
-            <Textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe the items/services..." />
+          <div className="grid gap-2">
+            <Label className="text-[13px]">Item Description *</Label>
+            <Textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe the items/services..." />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="grid gap-1.5">
-              <Label>Quantity</Label>
-              <Input value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="1" />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label className="text-[13px]">Quantity</Label>
+              <Input value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="1" className="h-10" />
             </div>
-            <div className="grid gap-1.5">
-              <Label>Currency</Label>
+            <div className="grid gap-2">
+              <Label className="text-[13px]">Currency</Label>
               <Select value={currency} onValueChange={(v) => setCurrency(v ?? "SAR")}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {CURRENCIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
@@ -263,43 +265,46 @@ export function POFormSheet({ open, onClose, editPO }: Props) {
             </div>
           </div>
 
-          <Separator />
+          <div className="my-1">
+            <Separator />
+            <div className="text-[11px] font-semibold text-[#9AA6B6] uppercase tracking-[0.1em] mt-4 mb-1">Amounts (SAR)</div>
+          </div>
 
-          {/* Amounts */}
-          <div className="text-[12px] font-semibold text-[#6A788D] uppercase tracking-wider">Amounts (SAR)</div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="grid gap-1.5">
-              <Label>PO Amount</Label>
-              <Input type="number" value={poAmtStr} onChange={(e) => setPoAmtStr(e.target.value)} placeholder="0.00" step="0.01" />
+          <div className="grid grid-cols-3 gap-4">
+            <div className="grid gap-2">
+              <Label className="text-[13px]">PO Amount</Label>
+              <Input type="number" value={poAmtStr} onChange={(e) => setPoAmtStr(e.target.value)} placeholder="0.00" step="0.01" className="h-10" />
             </div>
-            <div className="grid gap-1.5">
-              <Label>Ex-VAT (SAR)</Label>
-              <Input type="number" value={amtNoVatStr} onChange={(e) => setAmtNoVatStr(e.target.value)} placeholder="0.00" step="0.01" />
+            <div className="grid gap-2">
+              <Label className="text-[13px]">Ex-VAT</Label>
+              <Input type="number" value={amtNoVatStr} onChange={(e) => setAmtNoVatStr(e.target.value)} placeholder="0.00" step="0.01" className="h-10" />
             </div>
-            <div className="grid gap-1.5">
-              <Label>With VAT (SAR) *</Label>
-              <Input type="number" value={amtWithVatStr} onChange={(e) => setAmtWithVatStr(e.target.value)} placeholder="0.00" step="0.01" />
+            <div className="grid gap-2">
+              <Label className="text-[13px]">With VAT *</Label>
+              <Input type="number" value={amtWithVatStr} onChange={(e) => setAmtWithVatStr(e.target.value)} placeholder="0.00" step="0.01" className="h-10" />
             </div>
           </div>
-          <p className="text-[11px] text-[#9AA6B6]">Enter Ex-VAT amount to auto-calculate with VAT at 15%.</p>
+          <p className="text-[12px] text-[#9AA6B6] -mt-1">Enter Ex-VAT to auto-calculate With VAT at 15%.</p>
 
-          <Separator />
+          <div className="my-1">
+            <Separator />
+            <div className="text-[11px] font-semibold text-[#9AA6B6] uppercase tracking-[0.1em] mt-4 mb-1">Terms</div>
+          </div>
 
-          {/* Terms */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="grid gap-1.5">
-              <Label>INCO Term</Label>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label className="text-[13px]">INCO Term</Label>
               <Select value={incoTerm} onValueChange={(v) => setIncoTerm(v ?? "")}>
-                <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                <SelectTrigger className="h-10"><SelectValue placeholder="Select..." /></SelectTrigger>
                 <SelectContent>
                   {INCO_TERMS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-1.5">
-              <Label>Payment Term</Label>
+            <div className="grid gap-2">
+              <Label className="text-[13px]">Payment Term</Label>
               <Select value={paymentTerm} onValueChange={(v) => setPaymentTerm(v ?? "")}>
-                <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                <SelectTrigger className="h-10"><SelectValue placeholder="Select..." /></SelectTrigger>
                 <SelectContent>
                   {PAYMENT_TERMS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                 </SelectContent>
@@ -307,15 +312,15 @@ export function POFormSheet({ open, onClose, editPO }: Props) {
             </div>
           </div>
 
-          <div className="grid gap-1.5">
-            <Label>Notes</Label>
-            <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional notes..." />
+          <div className="grid gap-2">
+            <Label className="text-[13px]">Notes</Label>
+            <Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional notes..." />
           </div>
 
-          <div className="flex gap-2 pt-2">
-            <Button variant="outline" className="flex-1" onClick={onClose} disabled={saving}>Cancel</Button>
+          <div className="flex gap-3 pt-3">
+            <Button variant="outline" className="flex-1 h-10" onClick={onClose} disabled={saving}>Cancel</Button>
             <Button
-              className="flex-1 text-white"
+              className="flex-1 h-10 text-white"
               style={{ background: "#E07B00" }}
               onClick={handleSave}
               disabled={saving}
