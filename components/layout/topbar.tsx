@@ -29,14 +29,22 @@ export function TopBar() {
   const [cmdOpen, setCmdOpen] = useState(false);
   const [cmdQuery, setCmdQuery] = useState("");
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
   const { clientPOs, clientInvoices } = useClientData();
   const { openForm } = useGlobalForms();
   const router = useRouter();
 
-  function handleQuickAction(action: () => void) {
-    setQuickAddOpen(false);
-    // Wait for dropdown close animation before opening sheet/dialog
-    setTimeout(action, 80);
+  function handleDropdownChange(open: boolean) {
+    setQuickAddOpen(open);
+    if (!open && pendingAction) {
+      const action = pendingAction;
+      setPendingAction(null);
+      if (action === "navigate:/data-import") {
+        router.push("/data-import");
+      } else {
+        openForm(action as Parameters<typeof openForm>[0]);
+      }
+    }
   }
 
   useEffect(() => {
@@ -89,7 +97,7 @@ export function TopBar() {
 
         <div className="ml-auto flex items-center gap-2.5">
           {/* Quick Add */}
-          <DropdownMenu open={quickAddOpen} onOpenChange={setQuickAddOpen}>
+          <DropdownMenu open={quickAddOpen} onOpenChange={handleDropdownChange}>
             <DropdownMenuTrigger className="flex items-center gap-1.5 text-[12.5px] font-semibold text-white rounded-[8px] px-3 py-[7px] hover:opacity-90 transition-opacity outline-none" style={{ background: "#E07B00" }}>
               <Plus size={14} />Quick Add
               <ChevronDown size={11} strokeWidth={1.6} className="opacity-80" />
@@ -100,13 +108,17 @@ export function TopBar() {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               {([
-                { label: "Create Purchase Order", icon: FileText, action: () => handleQuickAction(() => openForm("addPO")) },
-                { label: "Add Invoice",           icon: Receipt,  action: () => handleQuickAction(() => openForm("addInvoice")) },
-                { label: "Record Payment",        icon: DollarSign, action: () => handleQuickAction(() => openForm("recordPayment")) },
-                { label: "Add Vendor",            icon: Building2, action: () => handleQuickAction(() => openForm("addVendor")) },
-                { label: "Import Excel / CSV",    icon: Upload,   action: () => handleQuickAction(() => router.push("/data-import")) },
+                { label: "Create Purchase Order", icon: FileText, key: "addPO" },
+                { label: "Add Invoice",           icon: Receipt,  key: "addInvoice" },
+                { label: "Record Payment",        icon: DollarSign, key: "recordPayment" },
+                { label: "Add Vendor",            icon: Building2, key: "addVendor" },
+                { label: "Import Excel / CSV",    icon: Upload,   key: "navigate:/data-import" },
               ] as const).map((a) => (
-                <DropdownMenuItem key={a.label} className="cursor-pointer" onSelect={(e) => { e.preventDefault(); a.action(); }}>
+                <DropdownMenuItem
+                  key={a.label}
+                  className="cursor-pointer"
+                  onClick={() => setPendingAction(a.key)}
+                >
                   <a.icon size={14} className="text-[#E07B00] flex-none" />
                   <span className="text-[13px] text-[#1A2230]">{a.label}</span>
                 </DropdownMenuItem>
