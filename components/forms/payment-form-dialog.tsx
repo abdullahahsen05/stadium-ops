@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useClientData } from "@/lib/client-data/client-context";
-import { formatSAR } from "@/lib/client-data/utils";
+import { buildPaymentMutation, formatSAR, getInvoicePendingAmount } from "@/lib/client-data/utils";
 import type { ClientInvoice } from "@/lib/client-data/types";
 
 const PAYMENT_METHODS = ["Bank Transfer", "SADAD", "Wire Transfer", "Cheque", "Letter of Credit", "Other"];
@@ -37,19 +37,19 @@ export function PaymentFormDialog({ open, onClose, prefillInvoice }: Props) {
   const [saving, setSaving] = useState(false);
 
   const selectedInvoice = prefillInvoice || clientInvoices.find((i) => i.id === selectedInvoiceId);
-  const pending = selectedInvoice
-    ? Math.max(0, selectedInvoice.invoiceAmountWithVat - selectedInvoice.paidAmount)
-    : 0;
+  const pending = selectedInvoice ? getInvoicePendingAmount(selectedInvoice) : 0;
 
   useEffect(() => {
     if (open) {
+      // Form state is reset when the controlled dialog opens.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPayDate(new Date().toISOString().split("T")[0]);
       setPayRef("");
       setPayMethod("Bank Transfer");
       setNotes("");
       if (prefillInvoice) {
         setSelectedInvoiceId(prefillInvoice.id);
-        setPayAmtStr(Math.max(0, prefillInvoice.invoiceAmountWithVat - prefillInvoice.paidAmount).toFixed(2));
+        setPayAmtStr(getInvoicePendingAmount(prefillInvoice).toFixed(2));
       } else {
         setSelectedInvoiceId("");
         setPayAmtStr("");
@@ -62,7 +62,9 @@ export function PaymentFormDialog({ open, onClose, prefillInvoice }: Props) {
     if (!prefillInvoice && selectedInvoiceId) {
       const inv = clientInvoices.find((i) => i.id === selectedInvoiceId);
       if (inv) {
-        setPayAmtStr(Math.max(0, inv.invoiceAmountWithVat - inv.paidAmount).toFixed(2));
+        // Keep the default amount aligned with the selected invoice.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setPayAmtStr(getInvoicePendingAmount(inv).toFixed(2));
       }
     }
   }, [selectedInvoiceId, clientInvoices, prefillInvoice]);
@@ -72,8 +74,8 @@ export function PaymentFormDialog({ open, onClose, prefillInvoice }: Props) {
     if (!payRef.trim()) { toast.error("Reference number is required"); return false; }
     const amt = safeNum(payAmtStr);
     if (amt <= 0) { toast.error("Payment amount must be greater than 0"); return false; }
-    if (amt > selectedInvoice.invoiceAmountWithVat) {
-      toast.error("Cannot exceed total invoice amount");
+    if (amt > pending) {
+      toast.error("Cannot exceed pending amount");
       return false;
     }
     return true;
@@ -84,14 +86,20 @@ export function PaymentFormDialog({ open, onClose, prefillInvoice }: Props) {
     setSaving(true);
 
     const amt = safeNum(payAmtStr);
-    applyMutation({
-      invoiceId: selectedInvoice.id,
-      paidAmount: amt,
-      paymentReceivedDate: payDate,
-      paymentStatus: "Paid 100%", // computed in context via computePaymentStatus
-      referenceNumber: payRef.trim(),
-      notes: notes.trim(),
-    });
+    let mutation;
+    try {
+      mutation = buildPaymentMutation(selectedInvoice, {
+        amount: amt,
+        paymentDate: payDate,
+        referenceNumber: payRef.trim(),
+        notes: notes.trim(),
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to record payment");
+      setSaving(false);
+      return;
+    }
+    applyMutation(mutation);
     addClientActivity({
       action: "payment",
       description: `Payment ${formatSAR(amt)} for ${selectedInvoice.invoiceRef} — ref: ${payRef}`,

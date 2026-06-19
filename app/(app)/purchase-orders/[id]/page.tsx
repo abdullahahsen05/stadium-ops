@@ -5,7 +5,15 @@ import { useParams, useRouter } from "next/navigation";
 import { useApp } from "@/lib/app-context";
 import { useClientData } from "@/lib/client-data/client-context";
 import { formatPKR } from "@/lib/store";
-import { formatSAR, getPaymentStatusColor, getPaymentStatusBg, isOverdue, isDueSoon } from "@/lib/client-data/utils";
+import {
+  buildPaymentMutation,
+  formatSAR,
+  getInvoicePendingAmount,
+  getPaymentStatusColor,
+  getPaymentStatusBg,
+  isOverdue,
+  isDueSoon,
+} from "@/lib/client-data/utils";
 import { StatusBadge } from "@/components/ui-custom/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,10 +44,10 @@ function TimelineStep({ label, date, done, active, danger }: { label: string; da
 }
 
 function ClientPODetail({ record }: { record: ClientRecord }) {
-  const { applyMutation } = useClientData();
+  const { applyMutation, addClientActivity } = useClientData();
   const [payDialog, setPayDialog] = useState(false);
   const [payDate, setPayDate] = useState(new Date().toISOString().split("T")[0]);
-  const [payAmount, setPayAmount] = useState((record.invoice?.invoiceAmountWithVat ?? 0).toFixed(2));
+  const [payAmount, setPayAmount] = useState(record.pendingAmount.toFixed(2));
   const [payRef, setPayRef] = useState("");
   const [payNotes, setPayNotes] = useState("");
 
@@ -53,15 +61,28 @@ function ClientPODetail({ record }: { record: ClientRecord }) {
       toast.error("Reference number is required");
       return;
     }
-    applyMutation({
-      invoiceId: invoice.id,
-      paidAmount: Number(payAmount),
-      paymentReceivedDate: payDate,
-      paymentStatus: "Paid 100%",
-      referenceNumber: payRef,
-      notes: payNotes,
+    const amount = Number(payAmount);
+    let mutation;
+    try {
+      mutation = buildPaymentMutation(invoice, {
+        amount,
+        paymentDate: payDate,
+        referenceNumber: payRef.trim(),
+        notes: payNotes.trim(),
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to record payment");
+      return;
+    }
+    applyMutation(mutation);
+    addClientActivity({
+      action: "payment",
+      description: `Payment ${formatSAR(amount)} for ${invoice.invoiceRef} (ref: ${payRef.trim()})`,
+      referenceId: invoice.id,
+      referenceRef: invoice.invoiceRef,
+      performedBy: "Ali Khan",
     });
-    toast.success(`Payment recorded for ${invoice.invoiceRef}`);
+    toast.success(`Payment of ${formatSAR(amount)} recorded for ${invoice.invoiceRef}`);
     setPayDialog(false);
   }
 
@@ -103,7 +124,14 @@ function ClientPODetail({ record }: { record: ClientRecord }) {
           <p className="text-[13px] text-[#6A788D] mt-0.5">{po.vendorName} · {po.initiatedBy}</p>
         </div>
         {invoice.paymentStatus !== "Paid 100%" && (
-          <Button onClick={() => setPayDialog(true)} style={{ background: "#1E8E55" }} className="text-white gap-1.5">
+          <Button
+            onClick={() => {
+              setPayAmount(getInvoicePendingAmount(invoice).toFixed(2));
+              setPayDialog(true);
+            }}
+            style={{ background: "#1E8E55" }}
+            className="text-white gap-1.5"
+          >
             <DollarSign size={14} />Record Payment
           </Button>
         )}
@@ -244,7 +272,7 @@ function ClientPODetail({ record }: { record: ClientRecord }) {
               </div>
               <div className="grid gap-1.5">
                 <Label>Paid Amount (SAR)</Label>
-                <Input type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} />
+                <Input type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} max={getInvoicePendingAmount(invoice)} step="0.01" />
               </div>
             </div>
             <div className="grid gap-1.5">

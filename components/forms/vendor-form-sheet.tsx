@@ -31,10 +31,6 @@ export function VendorFormSheet({ open, onClose }: Props) {
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (open) resetForm();
-  }, [open]);
-
   function resetForm() {
     setName("");
     setContactPerson("");
@@ -44,6 +40,12 @@ export function VendorFormSheet({ open, onClose }: Props) {
     setAddress("");
     setNotes("");
   }
+
+  useEffect(() => {
+    // Controlled sheet form is reset when opened for a new vendor.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (open) resetForm();
+  }, [open]);
 
   function validate() {
     if (!name.trim()) { toast.error("Vendor name is required"); return false; }

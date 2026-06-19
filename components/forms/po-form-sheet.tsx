@@ -59,6 +59,8 @@ export function POFormSheet({ open, onClose, editPO }: Props) {
 
   useEffect(() => {
     if (editPO) {
+      // Controlled sheet form is intentionally hydrated from the selected PO.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPoRef(editPO.poRef);
       setDiscipline(editPO.discipline);
       setVendorName(editPO.vendorName);
@@ -84,6 +86,8 @@ export function POFormSheet({ open, onClose, editPO }: Props) {
       const noVat = safeNum(amtNoVatStr);
       if (noVat > 0) {
         const withVat = noVat * (1 + VAT_RATE);
+        // Amount fields are derived together while creating a PO.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setAmtWithVatStr(withVat.toFixed(2));
         setPoAmtStr(String(noVat));
       }

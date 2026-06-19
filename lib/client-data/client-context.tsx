@@ -84,6 +84,8 @@ export function ClientDataProvider({ children }: { children: React.ReactNode }) 
   const [alertStates, setAlertStates] = useState<AlertStateMap>({});
 
   useEffect(() => {
+    // Client-data demo state is loaded from localStorage after hydration.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMutations(loadJson(MUTATIONS_KEY, []));
     setPoEdits(loadJson(PO_EDITS_KEY, []));
     setInvoiceEdits(loadJson(INV_EDITS_KEY, []));

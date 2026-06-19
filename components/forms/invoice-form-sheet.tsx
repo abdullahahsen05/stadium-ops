@@ -56,6 +56,8 @@ export function InvoiceFormSheet({ open, onClose, editInvoice, prefillPO }: Prop
   // Populate form when editing
   useEffect(() => {
     if (editInvoice) {
+      // Controlled sheet form is intentionally hydrated from the selected invoice.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedPOId(editInvoice.cpoId);
       setVendorName(editInvoice.vendorName);
       setInvoiceRef(editInvoice.invoiceRef);
@@ -79,7 +81,11 @@ export function InvoiceFormSheet({ open, onClose, editInvoice, prefillPO }: Prop
   useEffect(() => {
     if (!isEdit && selectedPOId) {
       const po = clientPOs.find((p) => p.id === selectedPOId);
-      if (po) setVendorName(po.vendorName);
+      if (po) {
+        // Vendor follows the selected PO while creating a new invoice.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setVendorName(po.vendorName);
+      }
     }
   }, [selectedPOId, clientPOs, isEdit]);
 
@@ -87,16 +93,22 @@ export function InvoiceFormSheet({ open, onClose, editInvoice, prefillPO }: Prop
   useEffect(() => {
     if (invoiceDate && creditDaysStr) {
       const days = parseInt(creditDaysStr, 10);
-      if (!isNaN(days)) setDueDate(addDays(invoiceDate, days));
+      if (!isNaN(days)) {
+        // Due date is derived from the selected invoice date and credit term.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setDueDate(addDays(invoiceDate, days));
+      }
     }
   }, [invoiceDate, creditDaysStr]);
 
   // Default payment requested amount to invoice amount
   useEffect(() => {
     if (!isEdit && invoiceAmtStr && !payReqAmtStr) {
+      // Default requested amount tracks invoice amount until the user enters one.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPayReqAmtStr(invoiceAmtStr);
     }
-  }, [invoiceAmtStr, isEdit]);
+  }, [invoiceAmtStr, isEdit, payReqAmtStr]);
 
   function resetForm() {
     setSelectedPOId("");

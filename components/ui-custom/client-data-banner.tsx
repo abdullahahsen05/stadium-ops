@@ -11,6 +11,8 @@ export function ClientDataBanner() {
   useEffect(() => {
     try {
       const d = localStorage.getItem(DISMISSED_KEY);
+      // Browser storage determines whether this client-only banner is visible.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDismissed(d === "true");
     } catch {
       setDismissed(false);
