@@ -5,8 +5,8 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { demoOpenAlerts, demoOpenInvoices } from "@/lib/demo-shell";
 import {
-  LayoutDashboard, Package, FileText, Truck, Receipt,
-  CreditCard, Building2, Trash2, AlertTriangle, Activity,
+  LayoutDashboard, FileText, Receipt,
+  CreditCard, Building2, AlertTriangle, Activity,
   BarChart3, Settings, Upload,
 } from "lucide-react";
 
@@ -15,13 +15,10 @@ const navSections = [
     label: "Operations",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/inventory", label: "Inventory", icon: Package },
       { href: "/purchase-orders", label: "Purchase Orders", icon: FileText },
-      { href: "/deliveries", label: "Deliveries", icon: Truck },
       { href: "/invoices", label: "Invoices", icon: Receipt, badge: "invoices" },
       { href: "/payments", label: "Payments", icon: CreditCard },
       { href: "/vendors", label: "Vendors", icon: Building2 },
-      { href: "/debris", label: "Debris / Waste", icon: Trash2 },
     ],
   },
   {
