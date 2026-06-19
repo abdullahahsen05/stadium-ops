@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useClientData } from "@/lib/client-data/client-context";
+import { useGlobalForms } from "@/lib/global-forms-context";
 import { formatSAR, getPaymentStatusColor, getPaymentStatusBg } from "@/lib/client-data/utils";
 import { ClientDataBanner } from "@/components/ui-custom/client-data-banner";
 import { ChartCard } from "@/components/ui-custom/chart-card";
@@ -70,6 +71,7 @@ function StageChip({ label, count, amount, color }: { label: string; count: numb
 
 export default function DashboardPage() {
   const { stats, clientRecords, clientInvoices, clientPOs, clientActivity } = useClientData();
+  const { openForm } = useGlobalForms();
 
   // Action center items
   const overdueRecords = clientRecords.filter((r) => r.isOverdue);
@@ -142,17 +144,16 @@ export default function DashboardPage() {
               Purchase orders, invoices &amp; payments — imported from Excel trackers · {stats.vendorCount} vendor · {stats.poCount} POs
             </p>
           </div>
-          <div className="flex items-center gap-2.5">
-            <Link href="/invoices">
-              <Button variant="outline" size="sm" className="gap-2 text-[12.5px]">
-                <Receipt size={13} />View Invoices
-              </Button>
-            </Link>
-            <Link href="/purchase-orders">
-              <Button size="sm" className="gap-2 text-[12.5px] text-white" style={{ background: ACCENT }}>
-                <FileText size={13} />Purchase Orders
-              </Button>
-            </Link>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="gap-2 text-[12.5px]" onClick={() => openForm("addInvoice")}>
+              <Receipt size={13} />Add Invoice
+            </Button>
+            <Button variant="outline" size="sm" className="gap-2 text-[12.5px]" onClick={() => openForm("recordPayment")}>
+              <DollarSign size={13} />Record Payment
+            </Button>
+            <Button size="sm" className="gap-2 text-[12.5px] text-white" style={{ background: ACCENT }} onClick={() => openForm("addPO")}>
+              <FileText size={13} />Create PO
+            </Button>
           </div>
         </div>
 
@@ -268,7 +269,7 @@ export default function DashboardPage() {
                   <Link href="/invoices" className="text-[11px] text-[#C8901F] hover:underline font-semibold">View</Link>
                 </div>
                 <div className="text-[11.5px] text-[#6A788D]">
-                  {formatSAR(toProcessRecords.reduce((s, r) => s + r.invoice.invoiceAmountWithVat, 0))} awaiting processing
+                  {formatSAR(toProcessRecords.reduce((s, r) => s + (r.invoice?.invoiceAmountWithVat ?? 0), 0))} awaiting processing
                 </div>
               </div>
             )}
@@ -283,7 +284,7 @@ export default function DashboardPage() {
                   <Link href="/payments" className="text-[11px] text-[#1968D3] hover:underline font-semibold">Record Payment</Link>
                 </div>
                 <div className="text-[11.5px] text-[#6A788D]">
-                  {formatSAR(hoRecords.reduce((s, r) => s + r.invoice.invoiceAmountWithVat, 0))} awaiting HO release
+                  {formatSAR(hoRecords.reduce((s, r) => s + (r.invoice?.invoiceAmountWithVat ?? 0), 0))} awaiting HO release
                 </div>
               </div>
             )}
@@ -415,7 +416,7 @@ export default function DashboardPage() {
                   <td className="py-2.5 pr-4 font-mono text-[12px] text-[#6A788D]">{po.poRef}</td>
                   <td className="py-2.5 pr-4 text-[#6A788D]">{invoice?.invoiceDate}</td>
                   <td className="py-2.5 pr-4 font-semibold">{formatSAR(invoice?.invoiceAmountWithVat ?? 0)}</td>
-                  <td className="py-2.5 pr-4 text-[#1E8E55] font-semibold">{invoice?.paidAmount > 0 ? formatSAR(invoice.paidAmount) : "—"}</td>
+                  <td className="py-2.5 pr-4 text-[#1E8E55] font-semibold">{(invoice?.paidAmount ?? 0) > 0 ? formatSAR(invoice!.paidAmount) : "—"}</td>
                   <td className="py-2.5 pr-4 font-semibold" style={{ color: pendingAmount > 0 ? "#C8901F" : "#1E8E55" }}>
                     {pendingAmount > 0 ? formatSAR(pendingAmount) : "—"}
                   </td>

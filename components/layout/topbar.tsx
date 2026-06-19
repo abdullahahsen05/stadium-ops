@@ -10,6 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useClientData } from "@/lib/client-data/client-context";
+import { useGlobalForms } from "@/lib/global-forms-context";
 import { formatSAR } from "@/lib/client-data/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -23,19 +24,12 @@ const roles: { name: UserRole; desc: string; dot: string }[] = [
   { name: "Viewer", desc: "Read-only access", dot: "#6A788D" },
 ];
 
-const quickActions = [
-  { label: "Create Purchase Order", icon: FileText, href: "/purchase-orders" },
-  { label: "Add Invoice", icon: Receipt, href: "/invoices" },
-  { label: "Record Payment", icon: DollarSign, href: "/payments" },
-  { label: "Add Vendor", icon: Building2, href: "/vendors" },
-  { label: "Import Excel / CSV", icon: Upload, href: "/data-import" },
-];
-
 export function TopBar() {
   const [role, setRole] = useState<UserRole>("Project Manager");
   const [cmdOpen, setCmdOpen] = useState(false);
   const [cmdQuery, setCmdQuery] = useState("");
   const { clientPOs, clientInvoices } = useClientData();
+  const { openForm } = useGlobalForms();
   const router = useRouter();
 
   useEffect(() => {
@@ -98,12 +92,16 @@ export function TopBar() {
                 Quick Actions
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {quickActions.map((a) => (
-                <DropdownMenuItem key={a.label} className="cursor-pointer p-0">
-                  <Link href={a.href} className="flex items-center gap-2.5 px-2 py-2 w-full">
-                    <a.icon size={14} className="text-[#E07B00] flex-none" />
-                    <span className="text-[13px] text-[#1A2230]">{a.label}</span>
-                  </Link>
+              {([
+                { label: "Create Purchase Order", icon: FileText, action: () => openForm("addPO") },
+                { label: "Add Invoice",           icon: Receipt,  action: () => openForm("addInvoice") },
+                { label: "Record Payment",        icon: DollarSign, action: () => openForm("recordPayment") },
+                { label: "Add Vendor",            icon: Building2, action: () => openForm("addVendor") },
+                { label: "Import Excel / CSV",    icon: Upload,   action: () => router.push("/data-import") },
+              ] as const).map((a) => (
+                <DropdownMenuItem key={a.label} className="cursor-pointer" onClick={a.action}>
+                  <a.icon size={14} className="text-[#E07B00] flex-none" />
+                  <span className="text-[13px] text-[#1A2230]">{a.label}</span>
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>

@@ -32,15 +32,27 @@ export interface ClientInvoice {
   paymentRequestedDate: string;
   paidAmount: number;
   paymentReceivedDate: string;
-  paymentStatus: string; // "Paid 100%" | "Partially Paid" | "Invoice sent to HO" | "To be Processed"
+  paymentStatus: string;
   creditDays: number;
   dueDate: string;
   notes?: string;
 }
 
+export interface ClientVendor {
+  id: string;
+  name: string;
+  contactPerson: string;
+  email: string;
+  phone: string;
+  category: string;
+  address: string;
+  notes?: string;
+  createdAt: string;
+}
+
 export interface ClientRecord {
   po: ClientPO;
-  invoice: ClientInvoice;
+  invoice?: ClientInvoice;
   pendingAmount: number;
   isOverdue: boolean;
   isDueSoon: boolean;
@@ -58,7 +70,15 @@ export interface ClientMutation {
 export interface ClientPOEdit {
   poId: string;
   discipline?: string;
+  vendorName?: string;
+  initiatedBy?: string;
+  dateIssued?: string;
   description?: string;
+  quantity?: string;
+  currency?: string;
+  poAmount?: number;
+  amountWithoutVatSar?: number;
+  amountWithVatSar?: number;
   incoTerm?: string;
   paymentTerm?: string;
   notes?: string;
@@ -67,8 +87,14 @@ export interface ClientPOEdit {
 
 export interface ClientInvoiceEdit {
   invoiceId: string;
+  invoiceRef?: string;
+  invoiceDate?: string;
+  invoiceAmountWithVat?: number;
   paymentRequestedAmount?: number;
   paymentRequestedDate?: string;
+  creditDays?: number;
+  dueDate?: string;
+  paymentStatus?: string;
   notes?: string;
   updatedAt: string;
 }

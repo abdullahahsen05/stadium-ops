@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useClientData } from "@/lib/client-data/client-context";
+import { useGlobalForms } from "@/lib/global-forms-context";
 import { formatSAR, getPaymentStatusColor, getPaymentStatusBg, isOverdue } from "@/lib/client-data/utils";
 import { PageHeader } from "@/components/ui-custom/page-header";
 import { StatCard } from "@/components/ui-custom/stat-card";
@@ -13,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { CreditCard, Search, DollarSign, CheckCircle, Clock, AlertTriangle } from "lucide-react";
+import { CreditCard, Search, DollarSign, CheckCircle, Clock, AlertTriangle, Plus } from "lucide-react";
 import type { ClientInvoice } from "@/lib/client-data/types";
 
 function PaymentStatusBadge({ status }: { status: string }) {
@@ -29,6 +30,7 @@ const STATUS_OPTIONS = ["All", "Paid 100%", "Partially Paid", "Invoice sent to H
 
 export default function PaymentsPage() {
   const { clientInvoices, stats, applyMutation, addClientActivity } = useClientData();
+  const { openForm } = useGlobalForms();
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -89,6 +91,15 @@ export default function PaymentsPage() {
       <PageHeader
         title="Payments"
         subtitle="Track payment records for Jeddah Stadium procurement invoices."
+        actions={
+          <Button
+            className="gap-2 text-white text-[12.5px]"
+            style={{ background: "#1E8E55" }}
+            onClick={() => openForm("recordPayment")}
+          >
+            <Plus size={13} />Record Payment
+          </Button>
+        }
       />
 
       {/* KPIs */}

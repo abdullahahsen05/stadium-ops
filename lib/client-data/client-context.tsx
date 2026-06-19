@@ -1,21 +1,25 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
-import { clientPOs, clientInvoices } from "./data";
+import { clientPOs as basePOs, clientInvoices as baseInvoices } from "./data";
 import { isOverdue, isDueSoon, computePaymentStatus } from "./utils";
 import type {
-  ClientPO, ClientInvoice, ClientRecord, ClientMutation,
+  ClientPO, ClientInvoice, ClientVendor, ClientRecord, ClientMutation,
   ClientPOEdit, ClientInvoiceEdit, ClientActivity, ClientStats
 } from "./types";
 
-const MUTATIONS_KEY = "stadiumops_client_mutations_v1";
-const PO_EDITS_KEY = "stadiumops_client_po_edits_v1";
-const INV_EDITS_KEY = "stadiumops_client_inv_edits_v1";
-const ACTIVITY_KEY = "stadiumops_client_activity_v1";
+const MUTATIONS_KEY   = "stadiumops_client_mutations_v1";
+const PO_EDITS_KEY    = "stadiumops_client_po_edits_v1";
+const INV_EDITS_KEY   = "stadiumops_client_inv_edits_v1";
+const ACTIVITY_KEY    = "stadiumops_client_activity_v1";
+const NEW_POS_KEY     = "stadiumops_client_new_pos_v1";
+const NEW_INVOICES_KEY = "stadiumops_client_new_invoices_v1";
+const NEW_VENDORS_KEY  = "stadiumops_client_new_vendors_v1";
 
 interface ClientDataContextValue {
   clientPOs: ClientPO[];
   clientInvoices: ClientInvoice[];
+  clientVendors: ClientVendor[];
   clientRecords: ClientRecord[];
   mutations: ClientMutation[];
   poEdits: ClientPOEdit[];
@@ -25,6 +29,11 @@ interface ClientDataContextValue {
   applyMutation: (m: ClientMutation) => void;
   applyPOEdit: (edit: ClientPOEdit) => void;
   applyInvoiceEdit: (edit: ClientInvoiceEdit) => void;
+  addClientPO: (po: ClientPO) => void;
+  addClientInvoice: (inv: ClientInvoice) => void;
+  addClientVendor: (vendor: ClientVendor) => void;
+  updateNewPO: (id: string, updates: Partial<ClientPO>) => void;
+  updateNewInvoice: (id: string, updates: Partial<ClientInvoice>) => void;
   addClientActivity: (a: Omit<ClientActivity, "id" | "timestamp">) => void;
   resetClientData: () => void;
 }
@@ -48,26 +57,133 @@ export function ClientDataProvider({ children }: { children: React.ReactNode }) 
   const [poEdits, setPoEdits] = useState<ClientPOEdit[]>([]);
   const [invoiceEdits, setInvoiceEdits] = useState<ClientInvoiceEdit[]>([]);
   const [clientActivity, setClientActivity] = useState<ClientActivity[]>([]);
+  const [newPOs, setNewPOs] = useState<ClientPO[]>([]);
+  const [newInvoices, setNewInvoices] = useState<ClientInvoice[]>([]);
+  const [newVendors, setNewVendors] = useState<ClientVendor[]>([]);
 
   useEffect(() => {
     setMutations(loadJson(MUTATIONS_KEY, []));
     setPoEdits(loadJson(PO_EDITS_KEY, []));
     setInvoiceEdits(loadJson(INV_EDITS_KEY, []));
     setClientActivity(loadJson(ACTIVITY_KEY, []));
+    setNewPOs(loadJson(NEW_POS_KEY, []));
+    setNewInvoices(loadJson(NEW_INVOICES_KEY, []));
+    setNewVendors(loadJson(NEW_VENDORS_KEY, []));
   }, []);
 
+  // All POs with edits applied
+  const resolvedPOs = useMemo<ClientPO[]>(() => {
+    const allPOs = [...basePOs, ...newPOs];
+    return allPOs.map((po) => {
+      const e = poEdits.find((x) => x.poId === po.id);
+      if (!e) return po;
+      return {
+        ...po,
+        ...(e.discipline !== undefined && { discipline: e.discipline }),
+        ...(e.vendorName !== undefined && { vendorName: e.vendorName }),
+        ...(e.initiatedBy !== undefined && { initiatedBy: e.initiatedBy }),
+        ...(e.dateIssued !== undefined && { dateIssued: e.dateIssued }),
+        ...(e.description !== undefined && { description: e.description }),
+        ...(e.quantity !== undefined && { quantity: e.quantity }),
+        ...(e.currency !== undefined && { currency: e.currency }),
+        ...(e.poAmount !== undefined && { poAmount: e.poAmount }),
+        ...(e.amountWithoutVatSar !== undefined && { amountWithoutVatSar: e.amountWithoutVatSar }),
+        ...(e.amountWithVatSar !== undefined && { amountWithVatSar: e.amountWithVatSar }),
+        ...(e.incoTerm !== undefined && { incoTerm: e.incoTerm }),
+        ...(e.paymentTerm !== undefined && { paymentTerm: e.paymentTerm }),
+        ...(e.notes !== undefined && { notes: e.notes }),
+      };
+    });
+  }, [poEdits, newPOs]);
+
+  // All invoices with edits + mutations applied
+  const resolvedInvoices = useMemo<ClientInvoice[]>(() => {
+    const allInvoices = [...baseInvoices, ...newInvoices];
+    return allInvoices.map((inv) => {
+      const e = invoiceEdits.find((x) => x.invoiceId === inv.id);
+      const m = mutations.find((x) => x.invoiceId === inv.id);
+
+      let result: ClientInvoice = { ...inv };
+
+      if (e) {
+        if (e.invoiceRef !== undefined) result = { ...result, invoiceRef: e.invoiceRef };
+        if (e.invoiceDate !== undefined) result = { ...result, invoiceDate: e.invoiceDate };
+        if (e.invoiceAmountWithVat !== undefined) result = { ...result, invoiceAmountWithVat: e.invoiceAmountWithVat };
+        if (e.paymentRequestedAmount !== undefined) result = { ...result, paymentRequestedAmount: e.paymentRequestedAmount };
+        if (e.paymentRequestedDate !== undefined) result = { ...result, paymentRequestedDate: e.paymentRequestedDate };
+        if (e.creditDays !== undefined) result = { ...result, creditDays: e.creditDays };
+        if (e.dueDate !== undefined) result = { ...result, dueDate: e.dueDate };
+        if (e.notes !== undefined) result = { ...result, notes: e.notes };
+        // Only apply edit status if no mutation (mutation takes priority)
+        if (e.paymentStatus !== undefined && !m) result = { ...result, paymentStatus: e.paymentStatus };
+      }
+
+      if (m) {
+        const computedStatus = computePaymentStatus(m.paidAmount, result.invoiceAmountWithVat, m.paymentStatus);
+        result = {
+          ...result,
+          paidAmount: m.paidAmount,
+          paymentReceivedDate: m.paymentReceivedDate,
+          paymentStatus: computedStatus,
+          ...(m.notes && { notes: m.notes }),
+        };
+      }
+
+      return result;
+    });
+  }, [mutations, invoiceEdits, newInvoices]);
+
+  const clientRecords = useMemo<ClientRecord[]>(() => {
+    return resolvedPOs.map((po) => {
+      const invoice = resolvedInvoices.find((inv) => inv.cpoId === po.id);
+      const pendingAmount = invoice ? Math.max(0, invoice.invoiceAmountWithVat - invoice.paidAmount) : 0;
+      const paid = invoice?.paymentStatus === "Paid 100%";
+      const partial = invoice?.paymentStatus === "Partially Paid";
+      return {
+        po,
+        invoice,
+        pendingAmount,
+        isOverdue: invoice ? isOverdue(invoice.dueDate) && !paid && !partial : false,
+        isDueSoon: invoice ? isDueSoon(invoice.dueDate) && !paid : false,
+      };
+    });
+  }, [resolvedPOs, resolvedInvoices]);
+
+  const stats = useMemo<ClientStats>(() => {
+    const totalPoValueWithVat = resolvedPOs.reduce((s, po) => s + po.amountWithVatSar, 0);
+    const totalInvoiceValueWithVat = resolvedInvoices.reduce((s, inv) => s + inv.invoiceAmountWithVat, 0);
+    const totalPaymentRequested = resolvedInvoices.reduce((s, inv) => s + inv.paymentRequestedAmount, 0);
+    const totalPaid = resolvedInvoices.reduce((s, inv) => s + inv.paidAmount, 0);
+    const totalPending = resolvedInvoices.reduce((s, inv) => s + Math.max(0, inv.invoiceAmountWithVat - inv.paidAmount), 0);
+    const overdueRecords = clientRecords.filter((r) => r.isOverdue);
+    const totalOverdueAmount = overdueRecords.reduce((s, r) => s + r.pendingAmount, 0);
+    const paidCount = resolvedInvoices.filter((inv) => inv.paymentStatus === "Paid 100%").length;
+    const partiallyPaidCount = resolvedInvoices.filter((inv) => inv.paymentStatus === "Partially Paid").length;
+    const invoiceSentToHoCount = resolvedInvoices.filter((inv) => inv.paymentStatus === "Invoice sent to HO").length;
+    const toBeProcessedCount = resolvedInvoices.filter((inv) => inv.paymentStatus === "To be Processed").length;
+    const overdueCount = overdueRecords.length;
+    const poCount = resolvedPOs.length;
+    const invoiceCount = resolvedInvoices.length;
+    const allVendorNames = new Set([...resolvedPOs.map((p) => p.vendorName), ...newVendors.map((v) => v.name)]);
+    const vendorCount = allVendorNames.size;
+    const disciplineCount = new Set(resolvedPOs.map((po) => po.discipline)).size;
+    const invWithCreditDays = resolvedInvoices.filter((inv) => inv.creditDays > 0);
+    const avgCreditDays = invWithCreditDays.length
+      ? Math.round(invWithCreditDays.reduce((s, inv) => s + inv.creditDays, 0) / invWithCreditDays.length)
+      : 0;
+
+    return {
+      totalPoValueWithVat, totalInvoiceValueWithVat, totalPaymentRequested,
+      totalPaid, totalPending, totalOverdueAmount,
+      paidCount, partiallyPaidCount, invoiceSentToHoCount, toBeProcessedCount,
+      overdueCount, poCount, invoiceCount, vendorCount, disciplineCount, avgCreditDays,
+    };
+  }, [resolvedPOs, resolvedInvoices, clientRecords, newVendors]);
+
   const applyMutation = useCallback((m: ClientMutation) => {
-    // Find the invoice to compute the correct status
-    const invoice = clientInvoices.find((inv) => inv.id === m.invoiceId);
-    const computedStatus = invoice
-      ? computePaymentStatus(m.paidAmount, invoice.invoiceAmountWithVat, m.paymentStatus)
-      : m.paymentStatus;
-
-    const finalMutation: ClientMutation = { ...m, paymentStatus: computedStatus };
-
     setMutations((prev) => {
       const idx = prev.findIndex((x) => x.invoiceId === m.invoiceId);
-      const next = idx >= 0 ? prev.map((x, i) => (i === idx ? finalMutation : x)) : [...prev, finalMutation];
+      const next = idx >= 0 ? prev.map((x, i) => (i === idx ? m : x)) : [...prev, m];
       saveJson(MUTATIONS_KEY, next);
       return next;
     });
@@ -91,6 +207,46 @@ export function ClientDataProvider({ children }: { children: React.ReactNode }) 
     });
   }, []);
 
+  const addClientPO = useCallback((po: ClientPO) => {
+    setNewPOs((prev) => {
+      const next = [...prev, po];
+      saveJson(NEW_POS_KEY, next);
+      return next;
+    });
+  }, []);
+
+  const addClientInvoice = useCallback((inv: ClientInvoice) => {
+    setNewInvoices((prev) => {
+      const next = [...prev, inv];
+      saveJson(NEW_INVOICES_KEY, next);
+      return next;
+    });
+  }, []);
+
+  const addClientVendor = useCallback((vendor: ClientVendor) => {
+    setNewVendors((prev) => {
+      const next = [...prev, vendor];
+      saveJson(NEW_VENDORS_KEY, next);
+      return next;
+    });
+  }, []);
+
+  const updateNewPO = useCallback((id: string, updates: Partial<ClientPO>) => {
+    setNewPOs((prev) => {
+      const next = prev.map((p) => (p.id === id ? { ...p, ...updates } : p));
+      saveJson(NEW_POS_KEY, next);
+      return next;
+    });
+  }, []);
+
+  const updateNewInvoice = useCallback((id: string, updates: Partial<ClientInvoice>) => {
+    setNewInvoices((prev) => {
+      const next = prev.map((i) => (i.id === id ? { ...i, ...updates } : i));
+      saveJson(NEW_INVOICES_KEY, next);
+      return next;
+    });
+  }, []);
+
   const addClientActivity = useCallback((a: Omit<ClientActivity, "id" | "timestamp">) => {
     const entry: ClientActivity = {
       ...a,
@@ -109,105 +265,25 @@ export function ClientDataProvider({ children }: { children: React.ReactNode }) 
     setPoEdits([]);
     setInvoiceEdits([]);
     setClientActivity([]);
+    setNewPOs([]);
+    setNewInvoices([]);
+    setNewVendors([]);
     saveJson(MUTATIONS_KEY, []);
     saveJson(PO_EDITS_KEY, []);
     saveJson(INV_EDITS_KEY, []);
     saveJson(ACTIVITY_KEY, []);
+    saveJson(NEW_POS_KEY, []);
+    saveJson(NEW_INVOICES_KEY, []);
+    saveJson(NEW_VENDORS_KEY, []);
   }, []);
 
-  // Apply PO edits
-  const resolvedPOs = useMemo<ClientPO[]>(() => {
-    return clientPOs.map((po) => {
-      const edit = poEdits.find((e) => e.poId === po.id);
-      if (!edit) return po;
-      return {
-        ...po,
-        ...(edit.discipline !== undefined && { discipline: edit.discipline }),
-        ...(edit.description !== undefined && { description: edit.description }),
-        ...(edit.incoTerm !== undefined && { incoTerm: edit.incoTerm }),
-        ...(edit.paymentTerm !== undefined && { paymentTerm: edit.paymentTerm }),
-        ...(edit.notes !== undefined && { notes: edit.notes }),
-      };
-    });
-  }, [poEdits]);
-
-  // Apply invoice edits + payment mutations
-  const resolvedInvoices = useMemo<ClientInvoice[]>(() => {
-    return clientInvoices.map((inv) => {
-      const edit = invoiceEdits.find((e) => e.invoiceId === inv.id);
-      const mut = mutations.find((m) => m.invoiceId === inv.id);
-
-      let result: ClientInvoice = { ...inv };
-
-      if (edit) {
-        if (edit.paymentRequestedAmount !== undefined) result = { ...result, paymentRequestedAmount: edit.paymentRequestedAmount };
-        if (edit.paymentRequestedDate !== undefined) result = { ...result, paymentRequestedDate: edit.paymentRequestedDate };
-        if (edit.notes !== undefined) result = { ...result, notes: edit.notes };
-      }
-
-      if (mut) {
-        const computedStatus = computePaymentStatus(mut.paidAmount, result.invoiceAmountWithVat, mut.paymentStatus);
-        result = {
-          ...result,
-          paidAmount: mut.paidAmount,
-          paymentReceivedDate: mut.paymentReceivedDate,
-          paymentStatus: computedStatus,
-          notes: mut.notes || result.notes,
-        };
-      }
-
-      return result;
-    });
-  }, [mutations, invoiceEdits]);
-
-  const clientRecords = useMemo<ClientRecord[]>(() => {
-    return resolvedPOs.map((po) => {
-      const invoice = resolvedInvoices.find((inv) => inv.cpoId === po.id)!;
-      const pendingAmount = invoice ? Math.max(0, invoice.invoiceAmountWithVat - invoice.paidAmount) : 0;
-      const paid = invoice?.paymentStatus === "Paid 100%";
-      return {
-        po,
-        invoice,
-        pendingAmount,
-        isOverdue: invoice ? isOverdue(invoice.dueDate) && !paid : false,
-        isDueSoon: invoice ? isDueSoon(invoice.dueDate) && !paid : false,
-      };
-    });
-  }, [resolvedPOs, resolvedInvoices]);
-
-  const stats = useMemo<ClientStats>(() => {
-    const totalPoValueWithVat = resolvedPOs.reduce((s, po) => s + po.amountWithVatSar, 0);
-    const totalInvoiceValueWithVat = resolvedInvoices.reduce((s, inv) => s + inv.invoiceAmountWithVat, 0);
-    const totalPaymentRequested = resolvedInvoices.reduce((s, inv) => s + inv.paymentRequestedAmount, 0);
-    const totalPaid = resolvedInvoices.reduce((s, inv) => s + inv.paidAmount, 0);
-    const totalPending = resolvedInvoices.reduce((s, inv) => s + Math.max(0, inv.invoiceAmountWithVat - inv.paidAmount), 0);
-    const overdueRecords = clientRecords.filter((r) => r.isOverdue);
-    const totalOverdueAmount = overdueRecords.reduce((s, r) => s + r.pendingAmount, 0);
-    const paidCount = resolvedInvoices.filter((inv) => inv.paymentStatus === "Paid 100%").length;
-    const partiallyPaidCount = resolvedInvoices.filter((inv) => inv.paymentStatus === "Partially Paid").length;
-    const invoiceSentToHoCount = resolvedInvoices.filter((inv) => inv.paymentStatus === "Invoice sent to HO").length;
-    const toBeProcessedCount = resolvedInvoices.filter((inv) => inv.paymentStatus === "To be Processed").length;
-    const overdueCount = overdueRecords.length;
-    const poCount = resolvedPOs.length;
-    const invoiceCount = resolvedInvoices.length;
-    const vendorCount = new Set(resolvedPOs.map((po) => po.vendorName)).size;
-    const disciplineCount = new Set(resolvedPOs.map((po) => po.discipline)).size;
-    const avgCreditDays = Math.round(
-      resolvedInvoices.reduce((s, inv) => s + inv.creditDays, 0) / resolvedInvoices.length
-    );
-
-    return {
-      totalPoValueWithVat, totalInvoiceValueWithVat, totalPaymentRequested,
-      totalPaid, totalPending, totalOverdueAmount,
-      paidCount, partiallyPaidCount, invoiceSentToHoCount, toBeProcessedCount,
-      overdueCount, poCount, invoiceCount, vendorCount, disciplineCount, avgCreditDays,
-    };
-  }, [resolvedPOs, resolvedInvoices, clientRecords]);
+  const clientVendors = useMemo(() => newVendors, [newVendors]);
 
   return (
     <ClientDataContext.Provider value={{
       clientPOs: resolvedPOs,
       clientInvoices: resolvedInvoices,
+      clientVendors,
       clientRecords,
       mutations,
       poEdits,
@@ -217,6 +293,11 @@ export function ClientDataProvider({ children }: { children: React.ReactNode }) 
       applyMutation,
       applyPOEdit,
       applyInvoiceEdit,
+      addClientPO,
+      addClientInvoice,
+      addClientVendor,
+      updateNewPO,
+      updateNewInvoice,
       addClientActivity,
       resetClientData,
     }}>

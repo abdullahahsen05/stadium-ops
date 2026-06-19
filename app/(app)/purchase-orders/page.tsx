@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useClientData } from "@/lib/client-data/client-context";
+import { useGlobalForms } from "@/lib/global-forms-context";
 import { formatSAR, getPaymentStatusColor, getPaymentStatusBg } from "@/lib/client-data/utils";
 import { PageHeader } from "@/components/ui-custom/page-header";
 import { StatCard } from "@/components/ui-custom/stat-card";
@@ -10,13 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { FileText, Search, ExternalLink, Edit2, Eye } from "lucide-react";
+import { FileText, Search, ExternalLink, Edit2, Eye, Plus, DollarSign } from "lucide-react";
 import Link from "next/link";
-import type { ClientRecord } from "@/lib/client-data/types";
+import type { ClientPO, ClientInvoice } from "@/lib/client-data/types";
 
 function PaymentStatusBadge({ status }: { status: string }) {
   return (
@@ -35,83 +33,58 @@ function DisciplineBadge({ disc }: { disc: string }) {
   );
 }
 
-const ALL_DISCIPLINES = ["All", "TSF", "Safety Equipments", "Consumables", "ELECTRICAL"];
-const ALL_STATUSES = ["All", "Paid 100%", "Partially Paid", "Invoice sent to HO", "To be Processed"];
+const ALL_STATUSES = ["All", "Paid 100%", "Partially Paid", "Invoice sent to HO", "To be Processed", "No Invoice"];
+
+interface DetailState {
+  po: ClientPO;
+  invoice?: ClientInvoice;
+  pendingAmount: number;
+}
 
 export default function PurchaseOrdersPage() {
-  const { clientRecords, stats, applyPOEdit, addClientActivity } = useClientData();
+  const { clientPOs, clientInvoices, stats } = useClientData();
+  const { openForm } = useGlobalForms();
 
   const [search, setSearch] = useState("");
   const [disciplineFilter, setDisciplineFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [detailState, setDetailState] = useState<DetailState | null>(null);
 
-  // Detail drawer
-  const [detailRecord, setDetailRecord] = useState<ClientRecord | null>(null);
+  // Unique disciplines from existing POs
+  const disciplines = ["All", ...Array.from(new Set(clientPOs.map((p) => p.discipline)))];
 
-  // Edit PO dialog
-  const [editRecord, setEditRecord] = useState<ClientRecord | null>(null);
-  const [editDesc, setEditDesc] = useState("");
-  const [editDisc, setEditDisc] = useState("");
-  const [editInco, setEditInco] = useState("");
-  const [editPayTerm, setEditPayTerm] = useState("");
-  const [editNotes, setEditNotes] = useState("");
-
-  const filtered = clientRecords.filter((r) => {
-    const matchSearch = search === "" ||
-      r.po.poRef.toLowerCase().includes(search.toLowerCase()) ||
-      r.po.description.toLowerCase().includes(search.toLowerCase()) ||
-      r.po.vendorName.toLowerCase().includes(search.toLowerCase());
-    const matchDiscipline = disciplineFilter === "All" || r.po.discipline === disciplineFilter;
-    const matchStatus = statusFilter === "All" || r.invoice?.paymentStatus === statusFilter;
-    return matchSearch && matchDiscipline && matchStatus;
+  // Enrich POs with their invoice
+  const enriched = clientPOs.map((po) => {
+    const invoice = clientInvoices.find((inv) => inv.cpoId === po.id);
+    const pendingAmount = invoice ? Math.max(0, invoice.invoiceAmountWithVat - invoice.paidAmount) : 0;
+    return { po, invoice, pendingAmount };
   });
 
-  function openEdit(record: ClientRecord) {
-    setEditRecord(record);
-    setEditDesc(record.po.description);
-    setEditDisc(record.po.discipline);
-    setEditInco(record.po.incoTerm);
-    setEditPayTerm(record.po.paymentTerm);
-    setEditNotes(record.po.notes ?? "");
-  }
-
-  function saveEdit() {
-    if (!editRecord) return;
-    applyPOEdit({
-      poId: editRecord.po.id,
-      discipline: editDisc,
-      description: editDesc,
-      incoTerm: editInco,
-      paymentTerm: editPayTerm,
-      notes: editNotes,
-      updatedAt: new Date().toISOString(),
-    });
-    addClientActivity({
-      action: "updated",
-      description: `Edited PO ${editRecord.po.poRef} — ${editRecord.po.vendorName}`,
-      referenceId: editRecord.po.id,
-      referenceRef: editRecord.po.poRef,
-      performedBy: "Ali Khan",
-    });
-    toast.success(`PO ${editRecord.po.poRef} updated`);
-    setEditRecord(null);
-    // Refresh detail if open
-    if (detailRecord?.po.id === editRecord.po.id) {
-      setDetailRecord(null);
-    }
-  }
+  const filtered = enriched.filter(({ po, invoice }) => {
+    const matchSearch = search === "" ||
+      po.poRef.toLowerCase().includes(search.toLowerCase()) ||
+      po.description.toLowerCase().includes(search.toLowerCase()) ||
+      po.vendorName.toLowerCase().includes(search.toLowerCase());
+    const matchDiscipline = disciplineFilter === "All" || po.discipline === disciplineFilter;
+    const matchStatus = statusFilter === "All"
+      || (statusFilter === "No Invoice" && !invoice)
+      || (invoice && invoice.paymentStatus === statusFilter);
+    return matchSearch && matchDiscipline && matchStatus;
+  });
 
   return (
     <div className="animate-fade-in-up">
       <PageHeader
         title="Purchase Orders"
-        subtitle="Jeddah Stadium procurement — imported from Excel tracker."
+        subtitle="Jeddah Stadium procurement — all purchase orders."
         actions={
-          <Link href="/data-import">
-            <Button variant="outline" size="sm" className="gap-2 text-[12.5px]">
-              <FileText size={13} />Data Import
-            </Button>
-          </Link>
+          <Button
+            className="gap-2 text-white text-[12.5px]"
+            style={{ background: "#E07B00" }}
+            onClick={() => openForm("addPO")}
+          >
+            <Plus size={13} />Create PO
+          </Button>
         }
       />
 
@@ -132,7 +105,7 @@ export default function PurchaseOrdersPage() {
         <Select value={disciplineFilter} onValueChange={(v) => setDisciplineFilter(v ?? "All")}>
           <SelectTrigger className="w-44"><SelectValue placeholder="All Disciplines" /></SelectTrigger>
           <SelectContent>
-            {ALL_DISCIPLINES.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+            {disciplines.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v ?? "All")}>
@@ -141,13 +114,13 @@ export default function PurchaseOrdersPage() {
             {ALL_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
           </SelectContent>
         </Select>
-        <div className="ml-auto text-[13px] text-[#6A788D]">{filtered.length} of {clientRecords.length} records</div>
+        <div className="ml-auto text-[13px] text-[#6A788D]">{filtered.length} of {clientPOs.length} records</div>
       </div>
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-[#E3E8F0] overflow-hidden" style={{ boxShadow: "0 1px 2px rgba(20,34,59,0.04)" }}>
         {filtered.length === 0 ? (
-          <EmptyState icon={FileText} title="No purchase orders found" description="Try adjusting your filters." />
+          <EmptyState icon={FileText} title="No purchase orders found" description="Try adjusting your filters or create a new PO." />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-[12px]">
@@ -159,8 +132,8 @@ export default function PurchaseOrdersPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(({ po, invoice, isOverdue: ov }) => (
-                  <tr key={po.id} className={`border-b border-[#F0F3F8] hover:bg-[#F8F9FC] transition-colors ${ov ? "bg-red-50/20" : ""}`}>
+                {filtered.map(({ po, invoice, pendingAmount }) => (
+                  <tr key={po.id} className="border-b border-[#F0F3F8] hover:bg-[#F8F9FC] transition-colors">
                     <td className="py-3 px-3"><DisciplineBadge disc={po.discipline} /></td>
                     <td className="py-3 px-3 font-mono text-[11.5px] font-semibold text-[#14223B]">{po.poRef}</td>
                     <td className="py-3 px-3 font-medium text-[#14223B] whitespace-nowrap">{po.vendorName}</td>
@@ -168,29 +141,31 @@ export default function PurchaseOrdersPage() {
                     <td className="py-3 px-3 text-[#14223B] max-w-[160px] truncate" title={po.description}>{po.description}</td>
                     <td className="py-3 px-3 font-mono text-[11.5px] font-semibold">{formatSAR(po.poAmount)}</td>
                     <td className="py-3 px-3 font-mono text-[11.5px] font-semibold">{formatSAR(po.amountWithVatSar)}</td>
-                    <td className="py-3 px-3 text-[#6A788D]">{po.incoTerm}</td>
-                    <td className="py-3 px-3 text-[#6A788D] whitespace-nowrap">{po.paymentTerm}</td>
+                    <td className="py-3 px-3 text-[#6A788D]">{po.incoTerm || "—"}</td>
+                    <td className="py-3 px-3 text-[#6A788D] whitespace-nowrap">{po.paymentTerm || "—"}</td>
                     <td className="py-3 px-3 font-mono text-[11.5px] text-[#6A788D]">{invoice?.invoiceRef ?? "—"}</td>
                     <td className="py-3 px-3">
-                      {invoice && <PaymentStatusBadge status={invoice.paymentStatus} />}
+                      {invoice
+                        ? <PaymentStatusBadge status={invoice.paymentStatus} />
+                        : <span className="text-[11px] text-[#9AA6B6]">No invoice</span>}
                     </td>
                     <td className="py-3 px-3">
                       <div className="flex items-center gap-1">
                         <button
-                          onClick={() => setDetailRecord({ po, invoice, pendingAmount: Math.max(0, invoice.invoiceAmountWithVat - invoice.paidAmount), isOverdue: ov, isDueSoon: false })}
-                          className="flex items-center gap-1 h-7 px-2 rounded text-[11px] font-semibold text-[#1968D3] hover:bg-blue-50"
+                          onClick={() => setDetailState({ po, invoice, pendingAmount })}
+                          className="flex items-center h-7 w-7 justify-center rounded text-[#1968D3] hover:bg-blue-50"
                           title="View details"
                         >
                           <Eye size={12} />
                         </button>
                         <button
-                          onClick={() => openEdit({ po, invoice, pendingAmount: Math.max(0, invoice.invoiceAmountWithVat - invoice.paidAmount), isOverdue: ov, isDueSoon: false })}
-                          className="flex items-center gap-1 h-7 px-2 rounded text-[11px] font-semibold text-[#6A788D] hover:bg-[#F0F3F8]"
+                          onClick={() => openForm("editPO", { po })}
+                          className="flex items-center h-7 w-7 justify-center rounded text-[#6A788D] hover:bg-[#F0F3F8]"
                           title="Edit PO"
                         >
                           <Edit2 size={12} />
                         </button>
-                        <Link href={`/purchase-orders/${po.id}`} className="flex items-center gap-1 h-7 px-2 rounded text-[11px] font-semibold text-[#E07B00] hover:bg-orange-50">
+                        <Link href={`/purchase-orders/${po.id}`} className="flex items-center h-7 w-7 justify-center rounded text-[#E07B00] hover:bg-orange-50">
                           <ExternalLink size={12} />
                         </Link>
                       </div>
@@ -204,14 +179,14 @@ export default function PurchaseOrdersPage() {
       </div>
 
       {/* Detail Drawer */}
-      <Sheet open={!!detailRecord} onOpenChange={() => setDetailRecord(null)}>
+      <Sheet open={!!detailState} onOpenChange={() => setDetailState(null)}>
         <SheetContent className="w-[480px] sm:max-w-[480px] overflow-y-auto">
-          {detailRecord && (
+          {detailState && (
             <>
               <SheetHeader className="mb-5">
                 <SheetTitle className="flex items-center gap-2">
                   <FileText size={16} className="text-[#E07B00]" />
-                  PO Details
+                  PO Details — {detailState.po.poRef}
                 </SheetTitle>
               </SheetHeader>
 
@@ -221,44 +196,43 @@ export default function PurchaseOrdersPage() {
                   <div className="text-[11px] font-bold uppercase tracking-wide text-[#6A788D] mb-3">Purchase Order</div>
                   <div className="space-y-2 text-[12.5px]">
                     {[
-                      { label: "PO Reference", value: detailRecord.po.poRef },
-                      { label: "Vendor", value: detailRecord.po.vendorName },
-                      { label: "Discipline", value: detailRecord.po.discipline },
-                      { label: "Initiated By", value: detailRecord.po.initiatedBy },
-                      { label: "Date Issued", value: detailRecord.po.dateIssued },
-                      { label: "Description", value: detailRecord.po.description },
-                      { label: "INCO Term", value: detailRecord.po.incoTerm },
-                      { label: "Payment Term", value: detailRecord.po.paymentTerm },
+                      { label: "PO Reference", value: detailState.po.poRef },
+                      { label: "Vendor", value: detailState.po.vendorName },
+                      { label: "Discipline", value: detailState.po.discipline },
+                      { label: "Initiated By", value: detailState.po.initiatedBy },
+                      { label: "Date Issued", value: detailState.po.dateIssued },
+                      { label: "Description", value: detailState.po.description },
+                      { label: "INCO Term", value: detailState.po.incoTerm || "—" },
+                      { label: "Payment Term", value: detailState.po.paymentTerm || "—" },
                     ].map(({ label, value }) => (
                       <div key={label} className="flex justify-between">
                         <span className="text-[#6A788D]">{label}</span>
-                        <span className="font-semibold text-[#14223B] text-right max-w-[240px]">{value || "—"}</span>
+                        <span className="font-semibold text-[#14223B] text-right max-w-[240px]">{value}</span>
                       </div>
                     ))}
                     <div className="flex justify-between border-t border-[#E3E8F0] pt-2 mt-2">
-                      <span className="text-[#6A788D]">PO Amount</span>
-                      <span className="font-bold text-[#14223B]">{formatSAR(detailRecord.po.poAmount)}</span>
+                      <span className="text-[#6A788D]">PO Amount (ex-VAT)</span>
+                      <span className="font-bold text-[#14223B]">{formatSAR(detailState.po.amountWithoutVatSar)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-[#6A788D]">Amount w/ VAT</span>
-                      <span className="font-bold text-[#14223B]">{formatSAR(detailRecord.po.amountWithVatSar)}</span>
+                      <span className="font-bold text-[#14223B]">{formatSAR(detailState.po.amountWithVatSar)}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Invoice Info */}
-                {detailRecord.invoice && (
+                {detailState.invoice ? (
                   <div className="rounded-xl border border-[#E3E8F0] p-4">
                     <div className="text-[11px] font-bold uppercase tracking-wide text-[#6A788D] mb-3">Linked Invoice</div>
                     <div className="space-y-2 text-[12.5px]">
                       {[
-                        { label: "Invoice Ref", value: detailRecord.invoice.invoiceRef },
-                        { label: "Invoice Date", value: detailRecord.invoice.invoiceDate },
-                        { label: "Invoice Amt w/VAT", value: formatSAR(detailRecord.invoice.invoiceAmountWithVat) },
-                        { label: "Paid Amount", value: detailRecord.invoice.paidAmount > 0 ? formatSAR(detailRecord.invoice.paidAmount) : "—" },
-                        { label: "Pending", value: detailRecord.pendingAmount > 0 ? formatSAR(detailRecord.pendingAmount) : "—" },
-                        { label: "Due Date", value: detailRecord.invoice.dueDate || "—" },
-                        { label: "Credit Days", value: `${detailRecord.invoice.creditDays} days` },
+                        { label: "Invoice Ref", value: detailState.invoice.invoiceRef },
+                        { label: "Invoice Date", value: detailState.invoice.invoiceDate },
+                        { label: "Invoice Amt w/VAT", value: formatSAR(detailState.invoice.invoiceAmountWithVat) },
+                        { label: "Paid Amount", value: detailState.invoice.paidAmount > 0 ? formatSAR(detailState.invoice.paidAmount) : "—" },
+                        { label: "Pending", value: detailState.pendingAmount > 0 ? formatSAR(detailState.pendingAmount) : "—" },
+                        { label: "Due Date", value: detailState.invoice.dueDate || "—" },
                       ].map(({ label, value }) => (
                         <div key={label} className="flex justify-between">
                           <span className="text-[#6A788D]">{label}</span>
@@ -267,26 +241,51 @@ export default function PurchaseOrdersPage() {
                       ))}
                       <div className="flex justify-between border-t border-[#E3E8F0] pt-2 mt-2">
                         <span className="text-[#6A788D]">Payment Status</span>
-                        <PaymentStatusBadge status={detailRecord.invoice.paymentStatus} />
+                        <PaymentStatusBadge status={detailState.invoice.paymentStatus} />
                       </div>
                     </div>
                   </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-[#E3E8F0] p-4 text-center">
+                    <p className="text-[12.5px] text-[#9AA6B6] mb-3">No invoice linked to this PO yet.</p>
+                    <Button
+                      size="sm"
+                      className="text-white text-[12px]"
+                      style={{ background: "#E07B00" }}
+                      onClick={() => { openForm("addInvoice", { po: detailState.po }); setDetailState(null); }}
+                    >
+                      Add Invoice for this PO
+                    </Button>
+                  </div>
                 )}
 
-                {detailRecord.po.notes && (
+                {detailState.po.notes && (
                   <div className="rounded-xl border border-[#E3E8F0] p-4 bg-[#FFFBEB]">
                     <div className="text-[11px] font-bold uppercase tracking-wide text-[#6A788D] mb-1">Notes</div>
-                    <p className="text-[12.5px] text-[#14223B]">{detailRecord.po.notes}</p>
+                    <p className="text-[12.5px] text-[#14223B]">{detailState.po.notes}</p>
                   </div>
                 )}
 
                 <div className="flex gap-2">
-                  <Button variant="outline" className="flex-1" onClick={() => openEdit(detailRecord)}>
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => { openForm("editPO", { po: detailState.po }); setDetailState(null); }}
+                  >
                     <Edit2 size={13} className="mr-1.5" />Edit PO
                   </Button>
-                  <Link href={`/purchase-orders/${detailRecord.po.id}`} className="flex-1">
-                    <Button className="w-full text-white" style={{ background: "#E07B00" }}>
-                      <ExternalLink size={13} className="mr-1.5" />Full Detail
+                  {detailState.invoice && detailState.invoice.paymentStatus !== "Paid 100%" && (
+                    <Button
+                      className="flex-1 text-white"
+                      style={{ background: "#1E8E55" }}
+                      onClick={() => { openForm("recordPayment", { invoice: detailState.invoice }); setDetailState(null); }}
+                    >
+                      <DollarSign size={13} className="mr-1.5" />Record Payment
+                    </Button>
+                  )}
+                  <Link href={`/purchase-orders/${detailState.po.id}`}>
+                    <Button variant="outline">
+                      <ExternalLink size={13} />
                     </Button>
                   </Link>
                 </div>
@@ -295,50 +294,6 @@ export default function PurchaseOrdersPage() {
           )}
         </SheetContent>
       </Sheet>
-
-      {/* Edit PO Dialog */}
-      <Dialog open={!!editRecord} onOpenChange={() => setEditRecord(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit PO — {editRecord?.po.poRef}</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-4 mt-2">
-            <div className="grid gap-1.5">
-              <Label>Discipline</Label>
-              <Select value={editDisc} onValueChange={(v) => setEditDisc(v ?? editDisc)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {["TSF", "Safety Equipments", "Consumables", "ELECTRICAL"].map(d => (
-                    <SelectItem key={d} value={d}>{d}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-1.5">
-              <Label>Description</Label>
-              <Textarea rows={2} value={editDesc} onChange={(e) => setEditDesc(e.target.value)} />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-1.5">
-                <Label>INCO Term</Label>
-                <Input value={editInco} onChange={(e) => setEditInco(e.target.value)} />
-              </div>
-              <div className="grid gap-1.5">
-                <Label>Payment Term</Label>
-                <Input value={editPayTerm} onChange={(e) => setEditPayTerm(e.target.value)} />
-              </div>
-            </div>
-            <div className="grid gap-1.5">
-              <Label>Notes</Label>
-              <Textarea rows={2} value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Optional notes..." />
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => setEditRecord(null)}>Cancel</Button>
-              <Button className="flex-1 text-white" style={{ background: "#E07B00" }} onClick={saveEdit}>Save Changes</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

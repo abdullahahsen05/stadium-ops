@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Building2, MapPin, Calendar, Package, Truck, Receipt, CreditCard, CheckCircle, Clock, AlertTriangle, DollarSign } from "lucide-react";
+import { ArrowLeft, Building2, MapPin, Calendar, Package, Truck, Receipt, CreditCard, CheckCircle, Clock, AlertTriangle, DollarSign, FileText } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -39,15 +39,16 @@ function ClientPODetail({ record }: { record: ClientRecord }) {
   const { applyMutation } = useClientData();
   const [payDialog, setPayDialog] = useState(false);
   const [payDate, setPayDate] = useState(new Date().toISOString().split("T")[0]);
-  const [payAmount, setPayAmount] = useState(record.invoice.invoiceAmountWithVat.toFixed(2));
+  const [payAmount, setPayAmount] = useState((record.invoice?.invoiceAmountWithVat ?? 0).toFixed(2));
   const [payRef, setPayRef] = useState("");
   const [payNotes, setPayNotes] = useState("");
 
   const { po, invoice, pendingAmount } = record;
-  const ov = isOverdue(invoice.dueDate) && invoice.paymentStatus !== "Paid 100%";
-  const soon = isDueSoon(invoice.dueDate) && invoice.paymentStatus !== "Paid 100%";
+  const ov = invoice ? isOverdue(invoice.dueDate) && invoice.paymentStatus !== "Paid 100%" : false;
+  const soon = invoice ? isDueSoon(invoice.dueDate) && invoice.paymentStatus !== "Paid 100%" : false;
 
   function handleRecordPayment() {
+    if (!invoice) return;
     if (!payRef.trim()) {
       toast.error("Reference number is required");
       return;
@@ -62,6 +63,21 @@ function ClientPODetail({ record }: { record: ClientRecord }) {
     });
     toast.success(`Payment recorded for ${invoice.invoiceRef}`);
     setPayDialog(false);
+  }
+
+  if (!invoice) {
+    return (
+      <div className="animate-fade-in-up p-6">
+        <Link href="/purchase-orders">
+          <Button variant="ghost" size="sm" className="gap-1.5 mb-4"><ArrowLeft size={15} />Back to Purchase Orders</Button>
+        </Link>
+        <div className="bg-white rounded-xl border border-[#E3E8F0] p-8 text-center">
+          <Package size={32} className="mx-auto text-[#9AA6B6] mb-3" />
+          <div className="text-[15px] font-semibold text-[#14223B] mb-1">PO — {po.poRef}</div>
+          <div className="text-[13px] text-[#6A788D]">No invoice linked to this purchase order yet.</div>
+        </div>
+      </div>
+    );
   }
 
   return (

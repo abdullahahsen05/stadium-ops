@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useClientData } from "@/lib/client-data/client-context";
+import { useGlobalForms } from "@/lib/global-forms-context";
 import { formatSAR, getPaymentStatusColor, getPaymentStatusBg, isOverdue, isDueSoon } from "@/lib/client-data/utils";
 import { PageHeader } from "@/components/ui-custom/page-header";
 import { StatCard } from "@/components/ui-custom/stat-card";
@@ -14,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Receipt, Search, DollarSign, AlertTriangle, CheckCircle, Clock, Edit2, Eye } from "lucide-react";
+import { Receipt, Search, DollarSign, AlertTriangle, CheckCircle, Clock, Edit2, Eye, Plus } from "lucide-react";
 import type { ClientInvoice } from "@/lib/client-data/types";
 
 function PaymentStatusBadge({ status }: { status: string }) {
@@ -29,7 +30,8 @@ function PaymentStatusBadge({ status }: { status: string }) {
 const STATUS_OPTIONS = ["All", "Paid 100%", "Partially Paid", "Invoice sent to HO", "To be Processed"];
 
 export default function InvoicesPage() {
-  const { clientInvoices, clientRecords, stats, applyMutation, applyInvoiceEdit, addClientActivity } = useClientData();
+  const { clientInvoices, stats, applyMutation, addClientActivity } = useClientData();
+  const { openForm } = useGlobalForms();
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -37,18 +39,12 @@ export default function InvoicesPage() {
   // Detail drawer
   const [detailInv, setDetailInv] = useState<ClientInvoice | null>(null);
 
-  // Pay dialog
+  // Pay dialog (inline — quick access from table)
   const [payDialog, setPayDialog] = useState<ClientInvoice | null>(null);
   const [payDate, setPayDate] = useState(new Date().toISOString().split("T")[0]);
   const [payAmount, setPayAmount] = useState("");
   const [payRef, setPayRef] = useState("");
   const [payNotes, setPayNotes] = useState("");
-
-  // Edit invoice dialog
-  const [editInv, setEditInv] = useState<ClientInvoice | null>(null);
-  const [editPayReqAmt, setEditPayReqAmt] = useState("");
-  const [editPayReqDate, setEditPayReqDate] = useState("");
-  const [editNotes, setEditNotes] = useState("");
 
   const filtered = clientInvoices.filter((inv) => {
     const matchSearch = search === "" ||
@@ -94,33 +90,6 @@ export default function InvoicesPage() {
     setPayDialog(null);
   }
 
-  function openEditInv(inv: ClientInvoice) {
-    setEditInv(inv);
-    setEditPayReqAmt(inv.paymentRequestedAmount > 0 ? inv.paymentRequestedAmount.toFixed(2) : "");
-    setEditPayReqDate(inv.paymentRequestedDate || "");
-    setEditNotes(inv.notes || "");
-  }
-
-  function saveInvoiceEdit() {
-    if (!editInv) return;
-    applyInvoiceEdit({
-      invoiceId: editInv.id,
-      paymentRequestedAmount: editPayReqAmt ? Number(editPayReqAmt) : undefined,
-      paymentRequestedDate: editPayReqDate || undefined,
-      notes: editNotes || undefined,
-      updatedAt: new Date().toISOString(),
-    });
-    addClientActivity({
-      action: "updated",
-      description: `Edited invoice ${editInv.invoiceRef}`,
-      referenceId: editInv.id,
-      referenceRef: editInv.invoiceRef,
-      performedBy: "Ali Khan",
-    });
-    toast.success(`Invoice ${editInv.invoiceRef} updated`);
-    setEditInv(null);
-  }
-
   return (
     <div className="animate-fade-in-up">
       <PageHeader
@@ -130,9 +99,9 @@ export default function InvoicesPage() {
           <Button
             className="gap-2 text-white text-[12.5px]"
             style={{ background: "#E07B00" }}
-            onClick={() => toast.info("Use the Data Import page to add new invoice records.")}
+            onClick={() => openForm("addInvoice")}
           >
-            <Receipt size={13} />Add Invoice
+            <Plus size={13} />Add Invoice
           </Button>
         }
       />
@@ -210,7 +179,7 @@ export default function InvoicesPage() {
                             <Eye size={12} />
                           </button>
                           <button
-                            onClick={() => openEditInv(inv)}
+                            onClick={() => openForm("editInvoice", { invoice: inv })}
                             className="h-7 w-7 flex items-center justify-center rounded text-[#6A788D] hover:bg-[#F0F3F8]"
                             title="Edit invoice"
                           >
@@ -283,7 +252,7 @@ export default function InvoicesPage() {
                   </div>
                 )}
                 <div className="flex gap-2">
-                  <Button variant="outline" className="flex-1" onClick={() => openEditInv(detailInv)}>
+                  <Button variant="outline" className="flex-1" onClick={() => { openForm("editInvoice", { invoice: detailInv }); setDetailInv(null); }}>
                     <Edit2 size={13} className="mr-1.5" />Edit Invoice
                   </Button>
                   {detailInv.paymentStatus !== "Paid 100%" && (
@@ -339,34 +308,6 @@ export default function InvoicesPage() {
         </Dialog>
       )}
 
-      {/* Edit Invoice Dialog */}
-      {editInv && (
-        <Dialog open={!!editInv} onOpenChange={() => setEditInv(null)}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader><DialogTitle>Edit Invoice — {editInv.invoiceRef}</DialogTitle></DialogHeader>
-            <div className="flex flex-col gap-4 mt-2">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="grid gap-1.5">
-                  <Label>Payment Requested (SAR)</Label>
-                  <Input type="number" value={editPayReqAmt} onChange={(e) => setEditPayReqAmt(e.target.value)} step="0.01" placeholder="0.00" />
-                </div>
-                <div className="grid gap-1.5">
-                  <Label>Payment Requested Date</Label>
-                  <Input type="date" value={editPayReqDate} onChange={(e) => setEditPayReqDate(e.target.value)} />
-                </div>
-              </div>
-              <div className="grid gap-1.5">
-                <Label>Notes</Label>
-                <Textarea rows={3} value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Optional notes..." />
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" className="flex-1" onClick={() => setEditInv(null)}>Cancel</Button>
-                <Button className="flex-1 text-white" style={{ background: "#E07B00" }} onClick={saveInvoiceEdit}>Save Changes</Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
     </div>
   );
 }
