@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Bell, ChevronDown, Search, Plus, FileText, Receipt, DollarSign, Building2, Upload, X } from "lucide-react";
 import { demoOpenAlerts } from "@/lib/demo-shell";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuLabel,
+  DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuLabel,
   DropdownMenuTrigger, DropdownMenuItem, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
@@ -103,26 +103,28 @@ export function TopBar() {
               <ChevronDown size={11} strokeWidth={1.6} className="opacity-80" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuLabel className="text-[10px] tracking-[0.1em] uppercase text-[#9AA0AB] font-semibold">
-                Quick Actions
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {([
-                { label: "Create Purchase Order", icon: FileText, key: "addPO" },
-                { label: "Add Invoice",           icon: Receipt,  key: "addInvoice" },
-                { label: "Record Payment",        icon: DollarSign, key: "recordPayment" },
-                { label: "Add Vendor",            icon: Building2, key: "addVendor" },
-                { label: "Import Excel / CSV",    icon: Upload,   key: "navigate:/data-import" },
-              ] as const).map((a) => (
-                <DropdownMenuItem
-                  key={a.label}
-                  className="cursor-pointer"
-                  onClick={() => { pendingActionRef.current = a.key; }}
-                >
-                  <a.icon size={14} className="text-[#E07B00] flex-none" />
-                  <span className="text-[13px] text-[#1A2230]">{a.label}</span>
-                </DropdownMenuItem>
-              ))}
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="text-[10px] tracking-[0.1em] uppercase text-[#9AA0AB] font-semibold">
+                  Quick Actions
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {([
+                  { label: "Create Purchase Order", icon: FileText, key: "addPO" },
+                  { label: "Add Invoice",           icon: Receipt,  key: "addInvoice" },
+                  { label: "Record Payment",        icon: DollarSign, key: "recordPayment" },
+                  { label: "Add Vendor",            icon: Building2, key: "addVendor" },
+                  { label: "Import Excel / CSV",    icon: Upload,   key: "navigate:/data-import" },
+                ] as const).map((a) => (
+                  <DropdownMenuItem
+                    key={a.label}
+                    className="cursor-pointer"
+                    onClick={() => { pendingActionRef.current = a.key; }}
+                  >
+                    <a.icon size={14} className="text-[#E07B00] flex-none" />
+                    <span className="text-[13px] text-[#1A2230]">{a.label}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -134,24 +136,26 @@ export function TopBar() {
               <ChevronDown size={11} strokeWidth={1.6} className="text-[#6A788D]" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-60">
-              <DropdownMenuLabel className="text-[10px] tracking-[0.1em] uppercase text-[#9AA0AB] font-semibold">
-                Demo Role
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {roles.map((r) => (
-                <DropdownMenuItem
-                  key={r.name}
-                  onClick={() => setRole(r.name)}
-                  className="flex items-center gap-2.5 py-2 cursor-pointer"
-                >
-                  <span className="w-2 h-2 rounded-full flex-none" style={{ background: r.dot }} />
-                  <span className="flex-1">
-                    <span className="block text-[13px] font-semibold text-[#1A2230]">{r.name}</span>
-                    <span className="block text-[11px] text-[#6B7384]">{r.desc}</span>
-                  </span>
-                  {role === r.name && <Badge variant="secondary" className="text-[10px]">Active</Badge>}
-                </DropdownMenuItem>
-              ))}
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="text-[10px] tracking-[0.1em] uppercase text-[#9AA0AB] font-semibold">
+                  Demo Role
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {roles.map((r) => (
+                  <DropdownMenuItem
+                    key={r.name}
+                    onClick={() => setRole(r.name)}
+                    className="flex items-center gap-2.5 py-2 cursor-pointer"
+                  >
+                    <span className="w-2 h-2 rounded-full flex-none" style={{ background: r.dot }} />
+                    <span className="flex-1">
+                      <span className="block text-[13px] font-semibold text-[#1A2230]">{r.name}</span>
+                      <span className="block text-[11px] text-[#6B7384]">{r.desc}</span>
+                    </span>
+                    {role === r.name && <Badge variant="secondary" className="text-[10px]">Active</Badge>}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
 
