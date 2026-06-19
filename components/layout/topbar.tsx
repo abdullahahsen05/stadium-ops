@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Bell, ChevronDown, Search, Plus, FileText, Receipt, DollarSign, Building2, Upload, X } from "lucide-react";
 import { demoOpenAlerts } from "@/lib/demo-shell";
 import {
@@ -29,16 +29,16 @@ export function TopBar() {
   const [cmdOpen, setCmdOpen] = useState(false);
   const [cmdQuery, setCmdQuery] = useState("");
   const [quickAddOpen, setQuickAddOpen] = useState(false);
-  const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const pendingActionRef = useRef<string | null>(null);
   const { clientPOs, clientInvoices } = useClientData();
   const { openForm } = useGlobalForms();
   const router = useRouter();
 
   function handleDropdownChange(open: boolean) {
     setQuickAddOpen(open);
-    if (!open && pendingAction) {
-      const action = pendingAction;
-      setPendingAction(null);
+    if (!open && pendingActionRef.current) {
+      const action = pendingActionRef.current;
+      pendingActionRef.current = null;
       if (action === "navigate:/data-import") {
         router.push("/data-import");
       } else {
@@ -117,7 +117,7 @@ export function TopBar() {
                 <DropdownMenuItem
                   key={a.label}
                   className="cursor-pointer"
-                  onClick={() => setPendingAction(a.key)}
+                  onClick={() => { pendingActionRef.current = a.key; }}
                 >
                   <a.icon size={14} className="text-[#E07B00] flex-none" />
                   <span className="text-[13px] text-[#1A2230]">{a.label}</span>
