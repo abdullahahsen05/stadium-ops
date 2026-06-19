@@ -12,9 +12,11 @@ const MUTATIONS_KEY   = "stadiumops_client_mutations_v1";
 const PO_EDITS_KEY    = "stadiumops_client_po_edits_v1";
 const INV_EDITS_KEY   = "stadiumops_client_inv_edits_v1";
 const ACTIVITY_KEY    = "stadiumops_client_activity_v1";
-const NEW_POS_KEY     = "stadiumops_client_new_pos_v1";
-const NEW_INVOICES_KEY = "stadiumops_client_new_invoices_v1";
-const NEW_VENDORS_KEY  = "stadiumops_client_new_vendors_v1";
+const NEW_POS_KEY        = "stadiumops_client_new_pos_v1";
+const NEW_INVOICES_KEY   = "stadiumops_client_new_invoices_v1";
+const NEW_VENDORS_KEY    = "stadiumops_client_new_vendors_v1";
+const DEL_POS_KEY        = "stadiumops_client_deleted_pos_v1";
+const DEL_INVOICES_KEY   = "stadiumops_client_deleted_invoices_v1";
 
 interface ClientDataContextValue {
   clientPOs: ClientPO[];
@@ -34,6 +36,9 @@ interface ClientDataContextValue {
   addClientVendor: (vendor: ClientVendor) => void;
   updateNewPO: (id: string, updates: Partial<ClientPO>) => void;
   updateNewInvoice: (id: string, updates: Partial<ClientInvoice>) => void;
+  deleteClientPO: (id: string) => void;
+  deleteClientInvoice: (id: string) => void;
+  deleteClientVendor: (id: string) => void;
   addClientActivity: (a: Omit<ClientActivity, "id" | "timestamp">) => void;
   resetClientData: () => void;
 }
@@ -60,6 +65,8 @@ export function ClientDataProvider({ children }: { children: React.ReactNode }) 
   const [newPOs, setNewPOs] = useState<ClientPO[]>([]);
   const [newInvoices, setNewInvoices] = useState<ClientInvoice[]>([]);
   const [newVendors, setNewVendors] = useState<ClientVendor[]>([]);
+  const [deletedPOIds, setDeletedPOIds] = useState<string[]>([]);
+  const [deletedInvoiceIds, setDeletedInvoiceIds] = useState<string[]>([]);
 
   useEffect(() => {
     setMutations(loadJson(MUTATIONS_KEY, []));
@@ -69,11 +76,13 @@ export function ClientDataProvider({ children }: { children: React.ReactNode }) 
     setNewPOs(loadJson(NEW_POS_KEY, []));
     setNewInvoices(loadJson(NEW_INVOICES_KEY, []));
     setNewVendors(loadJson(NEW_VENDORS_KEY, []));
+    setDeletedPOIds(loadJson(DEL_POS_KEY, []));
+    setDeletedInvoiceIds(loadJson(DEL_INVOICES_KEY, []));
   }, []);
 
-  // All POs with edits applied
+  // All POs with edits applied (excluding deleted)
   const resolvedPOs = useMemo<ClientPO[]>(() => {
-    const allPOs = [...basePOs, ...newPOs];
+    const allPOs = [...basePOs, ...newPOs].filter((po) => !deletedPOIds.includes(po.id));
     return allPOs.map((po) => {
       const e = poEdits.find((x) => x.poId === po.id);
       if (!e) return po;
@@ -94,11 +103,11 @@ export function ClientDataProvider({ children }: { children: React.ReactNode }) 
         ...(e.notes !== undefined && { notes: e.notes }),
       };
     });
-  }, [poEdits, newPOs]);
+  }, [poEdits, newPOs, deletedPOIds]);
 
-  // All invoices with edits + mutations applied
+  // All invoices with edits + mutations applied (excluding deleted)
   const resolvedInvoices = useMemo<ClientInvoice[]>(() => {
-    const allInvoices = [...baseInvoices, ...newInvoices];
+    const allInvoices = [...baseInvoices, ...newInvoices].filter((inv) => !deletedInvoiceIds.includes(inv.id));
     return allInvoices.map((inv) => {
       const e = invoiceEdits.find((x) => x.invoiceId === inv.id);
       const m = mutations.find((x) => x.invoiceId === inv.id);
@@ -131,7 +140,7 @@ export function ClientDataProvider({ children }: { children: React.ReactNode }) 
 
       return result;
     });
-  }, [mutations, invoiceEdits, newInvoices]);
+  }, [mutations, invoiceEdits, newInvoices, deletedInvoiceIds]);
 
   const clientRecords = useMemo<ClientRecord[]>(() => {
     return resolvedPOs.map((po) => {
@@ -247,6 +256,52 @@ export function ClientDataProvider({ children }: { children: React.ReactNode }) 
     });
   }, []);
 
+  const deleteClientPO = useCallback((id: string) => {
+    // If it's a new (user-created) PO, remove it directly
+    setNewPOs((prev) => {
+      const isNew = prev.some((p) => p.id === id);
+      if (isNew) {
+        const next = prev.filter((p) => p.id !== id);
+        saveJson(NEW_POS_KEY, next);
+        return next;
+      }
+      return prev;
+    });
+    // Soft-delete base records
+    setDeletedPOIds((prev) => {
+      if (prev.includes(id)) return prev;
+      const next = [...prev, id];
+      saveJson(DEL_POS_KEY, next);
+      return next;
+    });
+  }, []);
+
+  const deleteClientInvoice = useCallback((id: string) => {
+    setNewInvoices((prev) => {
+      const isNew = prev.some((i) => i.id === id);
+      if (isNew) {
+        const next = prev.filter((i) => i.id !== id);
+        saveJson(NEW_INVOICES_KEY, next);
+        return next;
+      }
+      return prev;
+    });
+    setDeletedInvoiceIds((prev) => {
+      if (prev.includes(id)) return prev;
+      const next = [...prev, id];
+      saveJson(DEL_INVOICES_KEY, next);
+      return next;
+    });
+  }, []);
+
+  const deleteClientVendor = useCallback((id: string) => {
+    setNewVendors((prev) => {
+      const next = prev.filter((v) => v.id !== id);
+      saveJson(NEW_VENDORS_KEY, next);
+      return next;
+    });
+  }, []);
+
   const addClientActivity = useCallback((a: Omit<ClientActivity, "id" | "timestamp">) => {
     const entry: ClientActivity = {
       ...a,
@@ -268,6 +323,8 @@ export function ClientDataProvider({ children }: { children: React.ReactNode }) 
     setNewPOs([]);
     setNewInvoices([]);
     setNewVendors([]);
+    setDeletedPOIds([]);
+    setDeletedInvoiceIds([]);
     saveJson(MUTATIONS_KEY, []);
     saveJson(PO_EDITS_KEY, []);
     saveJson(INV_EDITS_KEY, []);
@@ -275,6 +332,8 @@ export function ClientDataProvider({ children }: { children: React.ReactNode }) 
     saveJson(NEW_POS_KEY, []);
     saveJson(NEW_INVOICES_KEY, []);
     saveJson(NEW_VENDORS_KEY, []);
+    saveJson(DEL_POS_KEY, []);
+    saveJson(DEL_INVOICES_KEY, []);
   }, []);
 
   const clientVendors = useMemo(() => newVendors, [newVendors]);
@@ -298,6 +357,9 @@ export function ClientDataProvider({ children }: { children: React.ReactNode }) 
       addClientVendor,
       updateNewPO,
       updateNewInvoice,
+      deleteClientPO,
+      deleteClientInvoice,
+      deleteClientVendor,
       addClientActivity,
       resetClientData,
     }}>

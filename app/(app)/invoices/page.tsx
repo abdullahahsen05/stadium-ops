@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Receipt, Search, DollarSign, AlertTriangle, CheckCircle, Clock, Edit2, Eye, Plus } from "lucide-react";
+import { Receipt, Search, DollarSign, AlertTriangle, CheckCircle, Clock, Edit2, Eye, Plus, Trash2 } from "lucide-react";
 import type { ClientInvoice } from "@/lib/client-data/types";
 
 function PaymentStatusBadge({ status }: { status: string }) {
@@ -30,7 +30,7 @@ function PaymentStatusBadge({ status }: { status: string }) {
 const STATUS_OPTIONS = ["All", "Paid 100%", "Partially Paid", "Invoice sent to HO", "To be Processed"];
 
 export default function InvoicesPage() {
-  const { clientInvoices, stats, applyMutation, addClientActivity } = useClientData();
+  const { clientInvoices, stats, applyMutation, addClientActivity, deleteClientInvoice } = useClientData();
   const { openForm } = useGlobalForms();
 
   const [search, setSearch] = useState("");
@@ -38,6 +38,8 @@ export default function InvoicesPage() {
 
   // Detail drawer
   const [detailInv, setDetailInv] = useState<ClientInvoice | null>(null);
+  // Delete
+  const [deleteTarget, setDeleteTarget] = useState<ClientInvoice | null>(null);
 
   // Pay dialog (inline — quick access from table)
   const [payDialog, setPayDialog] = useState<ClientInvoice | null>(null);
@@ -194,6 +196,13 @@ export default function InvoicesPage() {
                               <DollarSign size={11} />Pay
                             </button>
                           )}
+                          <button
+                            onClick={() => setDeleteTarget(inv)}
+                            className="h-7 w-7 flex items-center justify-center rounded text-[#C0453F] hover:bg-red-50"
+                            title="Delete invoice"
+                          >
+                            <Trash2 size={12} />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -204,6 +213,34 @@ export default function InvoicesPage() {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation */}
+      <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader><DialogTitle>Delete Invoice</DialogTitle></DialogHeader>
+          <p className="text-[13px] text-[#6A788D] mt-1">
+            Delete invoice <strong className="text-[#14223B] font-mono">{deleteTarget?.invoiceRef}</strong>?
+            This cannot be undone.
+          </p>
+          <div className="flex gap-2 mt-4">
+            <Button variant="outline" className="flex-1" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button
+              className="flex-1 text-white"
+              style={{ background: "#C0453F" }}
+              onClick={() => {
+                if (!deleteTarget) return;
+                deleteClientInvoice(deleteTarget.id);
+                addClientActivity({ action: "delete_invoice", description: `Deleted invoice ${deleteTarget.invoiceRef} — ${deleteTarget.vendorName}`, referenceId: deleteTarget.id, referenceRef: deleteTarget.invoiceRef, performedBy: "Ali Khan" });
+                toast.success(`Invoice ${deleteTarget.invoiceRef} deleted`);
+                if (detailInv?.id === deleteTarget.id) setDetailInv(null);
+                setDeleteTarget(null);
+              }}
+            >
+              <Trash2 size={13} className="mr-1.5" />Delete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Detail Drawer */}
       <Sheet open={!!detailInv} onOpenChange={() => setDetailInv(null)}>

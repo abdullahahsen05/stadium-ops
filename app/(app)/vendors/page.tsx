@@ -10,7 +10,9 @@ import { EmptyState } from "@/components/ui-custom/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, Search, Plus, ExternalLink, Package, Receipt } from "lucide-react";
+import { Building2, Search, Plus, ExternalLink, Package, Receipt, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { toast } from "sonner";
 import Link from "next/link";
 
 function PaymentStatusBadge({ status }: { status: string }) {
@@ -23,10 +25,11 @@ function PaymentStatusBadge({ status }: { status: string }) {
 }
 
 export default function VendorsPage() {
-  const { clientPOs, clientInvoices, clientVendors, stats } = useClientData();
+  const { clientPOs, clientInvoices, clientVendors, stats, deleteClientVendor, addClientActivity } = useClientData();
   const { openForm } = useGlobalForms();
 
   const [search, setSearch] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null); // vendor name
 
   // Build vendor summary from client POs + invoices
   const vendorMap = new Map<string, {
@@ -229,6 +232,15 @@ export default function VendorsPage() {
                         >
                           <Receipt size={11} />Invoice
                         </button>
+                        {clientVendors.some((v) => v.name === vendor.name) && (
+                          <button
+                            onClick={() => setDeleteTarget(vendor.name)}
+                            className="h-7 w-7 flex items-center justify-center rounded text-[#C0453F] hover:bg-red-50"
+                            title="Delete vendor"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -238,6 +250,36 @@ export default function VendorsPage() {
           </div>
         )}
       </div>
+
+      {/* Delete Vendor Confirmation */}
+      <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader><DialogTitle>Delete Vendor</DialogTitle></DialogHeader>
+          <p className="text-[13px] text-[#6A788D] mt-1">
+            Remove <strong className="text-[#14223B]">{deleteTarget}</strong> from your vendor list?
+            Existing POs and invoices linked to this vendor are not affected.
+          </p>
+          <div className="flex gap-2 mt-4">
+            <Button variant="outline" className="flex-1" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button
+              className="flex-1 text-white"
+              style={{ background: "#C0453F" }}
+              onClick={() => {
+                if (!deleteTarget) return;
+                const vendor = clientVendors.find((v) => v.name === deleteTarget);
+                if (vendor) {
+                  deleteClientVendor(vendor.id);
+                  addClientActivity({ action: "delete_vendor", description: `Removed vendor ${deleteTarget}`, referenceId: vendor.id, referenceRef: deleteTarget, performedBy: "Ali Khan" });
+                  toast.success(`Vendor "${deleteTarget}" removed`);
+                }
+                setDeleteTarget(null);
+              }}
+            >
+              <Trash2 size={13} className="mr-1.5" />Delete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

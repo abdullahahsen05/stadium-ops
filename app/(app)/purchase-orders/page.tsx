@@ -10,9 +10,10 @@ import { EmptyState } from "@/components/ui-custom/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { FileText, Search, ExternalLink, Edit2, Eye, Plus, DollarSign } from "lucide-react";
+import { FileText, Search, ExternalLink, Edit2, Eye, Plus, DollarSign, Trash2 } from "lucide-react";
 import Link from "next/link";
 import type { ClientPO, ClientInvoice } from "@/lib/client-data/types";
 
@@ -42,13 +43,14 @@ interface DetailState {
 }
 
 export default function PurchaseOrdersPage() {
-  const { clientPOs, clientInvoices, stats } = useClientData();
+  const { clientPOs, clientInvoices, stats, deleteClientPO, addClientActivity } = useClientData();
   const { openForm } = useGlobalForms();
 
   const [search, setSearch] = useState("");
   const [disciplineFilter, setDisciplineFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
   const [detailState, setDetailState] = useState<DetailState | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ClientPO | null>(null);
 
   // Unique disciplines from existing POs
   const disciplines = ["All", ...Array.from(new Set(clientPOs.map((p) => p.discipline)))];
@@ -168,6 +170,13 @@ export default function PurchaseOrdersPage() {
                         <Link href={`/purchase-orders/${po.id}`} className="flex items-center h-7 w-7 justify-center rounded text-[#E07B00] hover:bg-orange-50">
                           <ExternalLink size={12} />
                         </Link>
+                        <button
+                          onClick={() => setDeleteTarget(po)}
+                          className="flex items-center h-7 w-7 justify-center rounded text-[#C0453F] hover:bg-red-50"
+                          title="Delete PO"
+                        >
+                          <Trash2 size={12} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -177,6 +186,34 @@ export default function PurchaseOrdersPage() {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation */}
+      <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader><DialogTitle>Delete Purchase Order</DialogTitle></DialogHeader>
+          <p className="text-[13px] text-[#6A788D] mt-1">
+            Delete <strong className="text-[#14223B] font-mono">{deleteTarget?.poRef}</strong>?
+            This will remove it from all views. This action cannot be undone.
+          </p>
+          <div className="flex gap-2 mt-4">
+            <Button variant="outline" className="flex-1" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button
+              className="flex-1 text-white"
+              style={{ background: "#C0453F" }}
+              onClick={() => {
+                if (!deleteTarget) return;
+                deleteClientPO(deleteTarget.id);
+                addClientActivity({ action: "delete_po", description: `Deleted PO ${deleteTarget.poRef} — ${deleteTarget.vendorName}`, referenceId: deleteTarget.id, referenceRef: deleteTarget.poRef, performedBy: "Ali Khan" });
+                toast.success(`PO ${deleteTarget.poRef} deleted`);
+                setDeleteTarget(null);
+                if (detailState?.po.id === deleteTarget.id) setDetailState(null);
+              }}
+            >
+              <Trash2 size={13} className="mr-1.5" />Delete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Detail Drawer */}
       <Sheet open={!!detailState} onOpenChange={() => setDetailState(null)}>
